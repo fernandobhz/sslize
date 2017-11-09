@@ -26,6 +26,6 @@
   },
   "homepage": "https://github.com/fernandobhz/sslize#readme",
   "dependencies": {
-    "redbird": "^0.7.0"
+    "winredbird": "^0.7.0"
   }
 }
