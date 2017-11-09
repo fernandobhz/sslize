@@ -1,0 +1,30 @@
+{
+  "name": "sslize",
+  "version": "1.0.1",
+  "description": "Automatic reverse proxy with let's encrypt. All requests received will be create a reverse proxy to port 80. SSL will be generated with let's encrypt for each host in requests",
+  "main": "sslize.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/fernandobhz/sslize.git"
+  },
+  "keywords": [
+    "lets",
+    "encrypt",
+    "ssl",
+    "reverse",
+    "proxy",
+    "automatic"
+  ],
+  "author": "Fernando Reis Guimaraes",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/fernandobhz/sslize/issues"
+  },
+  "homepage": "https://github.com/fernandobhz/sslize#readme",
+  "dependencies": {
+    "redbird": "^0.7.0"
+  }
+}
