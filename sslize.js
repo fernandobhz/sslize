@@ -10,7 +10,7 @@ proxy.notFound( function(req, res){
 				production: false
 			}
 		}
-	}
+	});
 
 	res.writeHead(302, {'Location': req.url});
 	res.end();
