@@ -6,99 +6,87 @@ if (process.argv.length != 5) {
 	return;
 }
 
+var registered = ['localhost', '127.0.0.1'];
+var httpolyglot = require('httpolyglot');
+var httpProxy = require('http-proxy');
 var greenlock = require('greenlock');
+var http = require('http');
 var path = require('path');
+
 
 var email = process.argv[2];
 var destination = process.argv[3];
-var production = process.argv[4] == 'true' ? true : false;
 var server = process.argv[4] == 'true' ? greenlock.productionServerUrl  :greenlock.stagingServerUrl;
-
-
-
 var le = greenlock.create({ server: server });
 var leMiddleware = le.middleware();
 
-var proxy = require('redbird')({
-	port: 80
-	, xfwd: false
-	, ssl: {
-		port: 443
-		, http2: true
-	}
-	, letsencrypt: {
-		path: path.join(require('home')(), 'letsencrypt')
-	}
-});
 
-
-
-var registered = ['localhost', '127.0.0.1'];
-
-proxy.notFound(async function(req, res){
-	var host = req.headers.host;
-console.log(`
-
-Received request ${req.headers.host}${req.url} > proxy.notfound
-
-`);
-
-	leMiddleware(req, res, function() {
-
-		if ( ! registered.includes(host) ) {
-console.log(`
-
-Registering ${host}
-
-`);
-			registered.push(host);
-			register(req, res);
-		} else {
-console.log(`
-
-Redirection to https ${req.headers.host}${req.url}
-
-`);
-			res.write(`
-				<script>
-					location = 'https://' + location.hostname + location.pathname + location.hash;
-				</script>
-			`);
-			res.end();
-		}
-
-	});
-});
-
-
-
-var register = function(req, res) {
+http.createServer(async function(req, res) {
 	var host = req.headers.host;
 
-	le.register({"domains": [host], "email": email, "agreeTos": true}).then(function (certs) {
-		console.log('');
-		console.log('Successfully registered ssls certs');
-		console.log('');
+	if ( registered.includes(host) ) {
+		proxy.web(req, res, { target: destination });
+	} else {
+		console.log(''); console.log(''); console.log(''); console.log('');
+		console.log(`Received request ${req.headers.host}${req.url}`);
+		console.log(''); console.log(''); console.log(''); console.log('');
 
-		proxy.register(host, destination,  {
-			ssl: {
-				letsencrypt: {
-				  email: email
-				  , production: production
-				}
+		leMiddleware(req, res, function() {
+			if ( ! registered.includes(host) ) {
+				console.log(''); console.log(''); console.log(''); console.log('');
+				console.log(`Registering ${host} asking lets encrypt`);
+				console.log(''); console.log(''); console.log(''); console.log('');
+
+				registered.push(host);
+
+				le.register({"domains": [host], "email": email, "agreeTos": true}).then(function(certs) {
+					console.log(''); console.log(''); console.log(''); console.log('');
+					console.log('Successfully registered ssls certs');
+					console.log(''); console.log(''); console.log(''); console.log('');					
+					
+					httpolyglot.createServer({
+					  key: certs.privkey
+					  , cert: certs.cert
+					  , ca: certs.chain
+					}, function(req, res) {
+						proxy.web(req, res, { target: destination });
+					}).listen(8443);
+					
+					httpProxy.createServer({
+						target: destination
+						ssl: {
+							key: certs.privkey
+							, cert: certs.cert
+							, ca: certs.chain
+						}
+					}).listen(443);
+
+					proxy.web(req, res, { target: destination });
+				}, function(err) {
+					console.log(''); console.log(''); console.log(''); console.log('');
+					console.log(err);
+					console.log(''); console.log(''); console.log(''); console.log('');
+
+					res.statusCode = 500;
+					res.write(err.message);
+					res.end;
+				});
+			} else {
+				console.log(''); console.log(''); console.log(''); console.log('');
+				console.log(`Looping back`);
+				console.log(''); console.log(''); console.log(''); console.log('');
+
+				setTimeout(function() {
+					console.log(''); console.log(''); console.log(''); console.log('');
+					console.log(`Looped back`);
+					console.log(''); console.log(''); console.log(''); console.log('');
+
+					res.writeHead(302, {'Location': req.url});
+					res.end();
+				}, 10000);
+
 			}
 		});
-
-		res.writeHead(302, {'Location': req.url});
-		res.end();
-	}, function (err) {
-		console.log('');
-		console.log(err);
-		console.log('');
-
-		res.statusCode = 500;
-		res.write(err.message);
-		res.end;
-	});
-}
+	}
+});
 
