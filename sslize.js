@@ -34,7 +34,7 @@ proxy.notFound(async function(req, res){
 	var host = req.headers.host;
 console.log(`
 
-Received request ${req.headers.host}/${req.url} > proxy.notfound
+Received request ${req.headers.host}${req.url} > proxy.notfound
 
 `);
 
@@ -51,7 +51,7 @@ Registering ${host}
 		} else {
 console.log(`
 
-Redirection to https ${req.headers.host}/${req.url}
+Redirection to https ${req.headers.host}${req.url}
 
 `);
 			res.send(`
