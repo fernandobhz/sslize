@@ -34,7 +34,7 @@ proxy.notFound(async function(req, res){
 	var host = req.headers.host;
 console.log(`
 
-Received request ${req.url} > proxy.notfound
+Received request ${req.host}/${req.url} > proxy.notfound
 
 `);
 
@@ -51,7 +51,7 @@ Registering ${host}
 		} else {
 console.log(`
 
-Redirection to https ${req.url}
+Redirection to https ${req.host}/${req.url}
 
 `);
 			res.send(`
@@ -72,7 +72,6 @@ var register = function(req, res) {
 	le.register({"domains": [host], "email": email, "agreeTos": true}).then(function (certs) {
 		console.log('');
 		console.log('Successfully registered ssls certs');
-		console.log(certs);
 		console.log('');
 
 		proxy.register(host, destination, {
