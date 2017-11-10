@@ -25,16 +25,18 @@ var leMiddleware = le.middleware();
 
 http.createServer(async function(req, res) {
 	var host = req.headers.host;
+	console.log(`Received request ${req.headers.host}${req.url}`);
 
-	if ( registered.includes(host) ) {
-		proxy.web(req, res, { target: destination });
-	} else {
-		console.log(`Received request ${req.headers.host}${req.url}`);
+	leMiddleware(req, res, function() {
+		
+		if ( registered.includes(host) ) {
+			console.log(`REGISTERED: ${req.headers.host}${req.url}`);		
+			proxy.web(req, res, { target: destination });
+		} else {
+			console.log(`UN-REGISTERED: ${req.headers.host}${req.url}`);		
 
-		leMiddleware(req, res, function() {
-			if ( ! registered.includes(host) ) {
-				console.log(`Registering ${host} asking lets encrypt`);
-
+			leMiddleware(req, res, function() {
+				console.log(`ASK-LETSENCRYPT ${host}`);
 				registered.push(host);
 
 				le.register({"domains": [host], "email": email, "agreeTos": true}).then(function(certs) {
@@ -63,20 +65,12 @@ http.createServer(async function(req, res) {
 
 					res.statusCode = 500;
 					res.write(err.message);
-					res.end;
-				});
-			} else {
-				console.log(`Looping back`);
-
-				setTimeout(function() {
-					console.log(`Looped back`);
-
-					res.writeHead(302, {'Location': req.url});
 					res.end();
-				}, 10000);
-
-			}
-		});
-	}
+				});
+				
+			});
+		
+		}
+	});
 }).listen(80);
 
