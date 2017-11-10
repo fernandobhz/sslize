@@ -52,7 +52,7 @@ http.createServer(async function(req, res) {
 			proxy.web(req, res, { target: destination });
 		} else {
 			console.log(`UN-REGISTERED: ${req.headers.host}${req.url}`);		
-			registered.push(host);
+			registered.unshift(host);
 			
 			console.log(`ASK-LETSENCRYPT ${registered}`);
 			le.register({"domains": registered, "email": email, "agreeTos": true}).then(function(certs) {
