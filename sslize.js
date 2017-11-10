@@ -35,60 +35,75 @@ var proxy = httpProxy.createProxyServer({xfwd: false});
 var le = greenlock.create({ server: server });
 var leMiddleware = le.middleware();
 
-var polyglot;
-var httpsproxy;
-
 http.createServer(async function(req, res) {
 	var host = req.headers.host;
 	console.log(`Received request ${req.headers.host}${req.url}`);
 
 	leMiddleware(req, res, function() {
-		
-		if ( skip.includes(host) ) {
-			console.log(`SKIPPED: ${req.headers.host}${req.url}`);		
-			proxy.web(req, res, { target: destination });
-		} else if ( registered.includes(host) ) {
-			console.log(`REGISTERED: ${req.headers.host}${req.url}`);		
-			proxy.web(req, res, { target: destination });
-		} else {
-			console.log(`UN-REGISTERED: ${req.headers.host}${req.url}`);		
-			registered.unshift(host);
-			
-			console.log(`ASK-LETSENCRYPT ${registered}`);
-			le.register({"domains": registered, "email": email, "agreeTos": true}).then(function(certs) {
-				console.log('Successfully registered ssls certs');
-			
-				if ( polyglot ) polyglot.close();
-				if ( httpsproxy ) httpsproxy.close();
-				
-				polyglot = httpolyglot.createServer({
-				  key: certs.privkey
-				  , cert: certs.cert
-				  , ca: certs.chain
-				}, function(req, res) {
-					proxy.web(req, res, { target: destination });
-				});
-				polyglot.listen(8443);
-				
-				httpsproxy = httpProxy.createServer({
-					target: destination
-					, ssl: {
-						key: certs.privkey
-						, cert: certs.cert
-						, ca: certs.chain
-					}
-				});
-				httpsproxy.listen(443);
-
-				proxy.web(req, res, { target: destination });
-			}, function(err) {
-				console.log(err);
-
-				res.statusCode = 500;
-				res.write(err.message);
-				res.end();
-			});
-		}
+		httpHttps(req, res);
 	});
+
 }).listen(80);
+
+var polyglot;
+
+var httpHttps = function(req, res) {
+	if ( ! host ) {
+		var errMessage = `HOST IS NOT VALID: '${host}'`;
+		console.log(errMessage);
+		res.statusCode = 500;
+		res.write(errMessage);
+		res.end();
+	} else if ( skip.includes(host) ) {
+		console.log(`IP: ${req.headers.host}${req.url}`);
+		proxy.web(req, res, { target: destination });
+	} else if ( skip.includes(host) ) {
+		console.log(`SKIPPED: ${req.headers.host}${req.url}`);
+		proxy.web(req, res, { target: destination });
+	} else if ( registered.includes(host) ) {
+		console.log(`REGISTERED: ${req.headers.host}${req.url}`);
+		if ( force ) {
+			res.writeHead(302, {'Location': `https://${req.headers.host}${req.url}`});
+			res.end();
+		} else {
+			proxy.web(req, res, { target: destination });
+		}
+	} else {
+		console.log(`UN-REGISTERED: ${req.headers.host}${req.url}`);
+		registered.unshift(host);
+
+		console.log(`ASK-LETSENCRYPT ${registered}`);
+		le.register({"domains": registered, "email": email, "agreeTos": true}).then(function(certs) {
+			console.log('Successfully registered ssls certs');
+
+			if ( polyglot ) polyglot.close();
+
+			polyglot = httpolyglot.createServer({
+			  key: certs.privkey
+			  , cert: certs.cert
+			  , ca: certs.chain
+			}, function(req, res) {
+				if ( ! registered.includes(req.headers.host) ) {
+					httpHttps(req, res);
+				} else {
+					proxy.web(req, res, { target: destination });
+				}
+			});
+			polyglot.listen(443);
+
+			if ( force ) {
+				res.writeHead(302, {'Location': `https://${req.headers.host}${req.url}`});
+				res.end();
+			} else {
+				proxy.web(req, res, { target: destination });
+			}
+		}, function(err) {
+			console.log(err);
+
+			res.statusCode = 500;
+			res.write(err.message);
+			res.end();
+		});
+	}
+}
 
