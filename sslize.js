@@ -37,9 +37,12 @@ http.createServer(async function(req, res) {
 
 			leMiddleware(req, res, function() {
 				console.log(`ASK-LETSENCRYPT ${host}`);
-				registered.push(host);
+				////registered.push(host);
+				registered.push('merg.agoge.com.br');
+				registered.push('merg2.agoge.com.br');
 
-				le.register({"domains": [host], "email": email, "agreeTos": true}).then(function(certs) {
+				////le.register({"domains": [host], "email": email, "agreeTos": true}).then(function(certs) {
+				le.register({"domains": ['merg.agoge.com.br', 'merg2.agoge.com.br'], "email": email, "agreeTos": true}).then(function(certs) {
 					console.log('Successfully registered ssls certs');
 					
 					httpolyglot.createServer({
