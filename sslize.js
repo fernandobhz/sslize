@@ -1,12 +1,13 @@
 #! /usr/bin/env node
 
 if (process.argv.length != 5) {
-	console.log('Usage: sslize email protocol://host:port productionServer(true|false)');
+	console.log('Usage: sslize email protocol://host:port productionServer(true|false|force)');
 	console.log(' eg: sslize john@example.com http://localhost:8080 false');
 	return;
 }
 
-var registered = ['localhost', '127.0.0.1'];
+var registered = [];
+var skip = ['localhost', '127.0.0.1'];
 var httpolyglot = require('httpolyglot');
 var httpProxy = require('http-proxy');
 var greenlock = require('greenlock');
@@ -15,13 +16,27 @@ var path = require('path');
 
 
 var email = process.argv[2];
+
 var destination = process.argv[3];
-var server = process.argv[4] == 'true' ? greenlock.productionServerUrl  :greenlock.stagingServerUrl;
+
+if ( process.argv[4] == 'force' ) {
+	var server = greenlock.productionServerUrl;
+	var force = true;
+} else if ( process.argv[4] == 'true') {
+	var server = greenlock.productionServerUrl;
+	var force = false;
+} else {
+	var server = greenlock.stagingServerUrl;
+	var force = false;
+}
 
 
 var proxy = httpProxy.createProxyServer({xfwd: false});
 var le = greenlock.create({ server: server });
 var leMiddleware = le.middleware();
+
+var polyglot;
+var httpsproxy;
 
 http.createServer(async function(req, res) {
 	var host = req.headers.host;
@@ -29,50 +44,50 @@ http.createServer(async function(req, res) {
 
 	leMiddleware(req, res, function() {
 		
-		if ( registered.includes(host) ) {
+		if ( skip.includes(host) ) {
+			console.log(`SKIPPED: ${req.headers.host}${req.url}`);		
+			proxy.web(req, res, { target: destination });
+		} else if ( registered.includes(host) ) {
 			console.log(`REGISTERED: ${req.headers.host}${req.url}`);		
 			proxy.web(req, res, { target: destination });
 		} else {
 			console.log(`UN-REGISTERED: ${req.headers.host}${req.url}`);		
-
-			leMiddleware(req, res, function() {
-				console.log(`ASK-LETSENCRYPT ${host}`);
-				////registered.push(host);
-				registered.push('merg.agoge.com.br');
-				registered.push('merg2.agoge.com.br');
-
-				////le.register({"domains": [host], "email": email, "agreeTos": true}).then(function(certs) {
-				le.register({"domains": ['merg.agoge.com.br', 'merg2.agoge.com.br'], "email": email, "agreeTos": true}).then(function(certs) {
-					console.log('Successfully registered ssls certs');
-					
-					httpolyglot.createServer({
-					  key: certs.privkey
-					  , cert: certs.cert
-					  , ca: certs.chain
-					}, function(req, res) {
-						proxy.web(req, res, { target: destination });
-					}).listen(8443);
-					
-					httpProxy.createServer({
-						target: destination
-						, ssl: {
-							key: certs.privkey
-							, cert: certs.cert
-							, ca: certs.chain
-						}
-					}).listen(443);
-
-					proxy.web(req, res, { target: destination });
-				}, function(err) {
-					console.log(err);
-
-					res.statusCode = 500;
-					res.write(err.message);
-					res.end();
-				});
+			registered.push(host);
+			
+			console.log(`ASK-LETSENCRYPT ${registered}`);
+			le.register({"domains": registered, "email": email, "agreeTos": true}).then(function(certs) {
+				console.log('Successfully registered ssls certs');
+			
+				if ( polyglot ) polyglot.close();
+				if ( httpsproxy ) httpsproxy.close();
 				
+				polyglot = httpolyglot.createServer({
+				  key: certs.privkey
+				  , cert: certs.cert
+				  , ca: certs.chain
+				}, function(req, res) {
+					proxy.web(req, res, { target: destination });
+				});
+				polyglot.listen(8443);
+				
+				httpsproxy = httpProxy.createServer({
+					target: destination
+					, ssl: {
+						key: certs.privkey
+						, cert: certs.cert
+						, ca: certs.chain
+					}
+				});
+				httpsproxy.listen(443);
+
+				proxy.web(req, res, { target: destination });
+			}, function(err) {
+				console.log(err);
+
+				res.statusCode = 500;
+				res.write(err.message);
+				res.end();
 			});
-		
 		}
 	});
 }).listen(80);
