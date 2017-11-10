@@ -28,7 +28,7 @@ var proxy = require('redbird')({
 
 
 
-var registered = [];
+var registered = ['localhost', '127.0.0.1'];
 
 proxy.notFound(async function(req, res){
 	var host = req.headers.host;
