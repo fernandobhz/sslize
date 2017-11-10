@@ -10,7 +10,7 @@ var greenlock = require('greenlock');
 
 var email = process.argv[2];
 var destination = process.argv[3];
-var server = process.argv[4] == 'true' ? greenlock.productionServerUrl  :greenlock.stagingServerUrl; 
+var server = process.argv[4] == 'true' ? greenlock.productionServerUrl  :greenlock.stagingServerUrl;
 
 
 
@@ -32,20 +32,35 @@ var registered = [];
 
 proxy.notFound(async function(req, res){
 	var host = req.headers.host;
-	
+console.log(`
+
+Received request ${req.url} > proxy.notfound
+
+`);
+
 	leMiddleware(req, res, function() {
-		
+
 		if ( ! registered.includes(host) ) {
+console.log(`
+
+Registering ${host}
+
+`);
 			registered.push(host);
 			register(req, res);
 		} else {
+console.log(`
+
+Redirection to https ${req.url}
+
+`);
 			res.send(`
 				<script>
 					location = 'https://' + location.hostname + location.pathname + location.hash;
 				</script>
 			`);
 		}
-		
+
 	});
 });
 
@@ -53,19 +68,26 @@ proxy.notFound(async function(req, res){
 
 var register = function(req, res) {
 	var host = req.headers.host;
-	
+
 	le.register({"domains": [host], "email": email, "agreeTos": true}).then(function (certs) {
+		console.log('');
+		console.log('Successfully registered ssls certs');
+		console.log(certs);
+		console.log('');
+
 		proxy.register(host, destination, {
 			key: certs.privkey
 			, cert: certs.cert
 			, ca: certs.chain
 		});
-		
+
 		res.writeHead(302, {'Location': req.url});
 		res.end();
 	}, function (err) {
+		console.log('');
 		console.log(err);
-		
+		console.log('');
+
 		res.statusCode = 500;
 		res.send(err.message);
 		res.end;
