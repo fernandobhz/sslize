@@ -36,7 +36,6 @@ var le = greenlock.create({ server: server });
 var leMiddleware = le.middleware();
 
 http.createServer(async function(req, res) {
-	var host = req.headers.host;
 	console.log(`Received request ${req.headers.host}${req.url}`);
 
 	leMiddleware(req, res, function() {
@@ -48,6 +47,8 @@ http.createServer(async function(req, res) {
 var polyglot;
 
 var httpHttps = function(req, res) {
+	var host = req.headers.host
+	
 	if ( ! host ) {
 		var errMessage = `HOST IS NOT VALID: '${host}'`;
 		console.log(errMessage);
