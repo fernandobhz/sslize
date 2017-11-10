@@ -20,31 +20,33 @@ var email = process.argv[2];
 var destination = process.argv[3];
 
 if ( process.argv[4] == 'force' ) {
-	var server = greenlock.productionServerUrl;
+	var production = true;
 	var force = true;
 } else if ( process.argv[4] == 'true') {
-	var server = greenlock.productionServerUrl;
+	var production = true;
 	var force = false;
 } else {
-	var server = greenlock.stagingServerUrl;
+	var production = false;
 	var force = false;
 }
 
 
 var proxy = httpProxy.createProxyServer({xfwd: false});
-var le = greenlock.create({ server: server });
-var leMiddleware = le.middleware();
+var leStaging = greenlock.create({ server: greenlock.stagingServerUrl });
+var leProduction = greenlock.create({ server: greenlock.productionServerUrl });
+var leStagingMiddleware = leStaging.middleware();
+var leProductionMiddleware = leProduction.middleware();
+
 
 http.createServer(async function(req, res) {
 	console.log(`Received request ${req.headers.host}${req.url}`);
 
-	leMiddleware(req, res, function() {
+	leProductionMiddleware(req, res, function() {
 		httpHttps(req, res);
 	});
 
 }).listen(80);
 
-var polyglot;
 
 var httpHttps = function(req, res) {
 	var host = req.headers.host;
@@ -74,31 +76,27 @@ var httpHttps = function(req, res) {
 		registered.unshift(host);
 
 		console.log(`ASK-LETSENCRYPT ${registered}`);
-		le.register({"domains": registered, "email": email, "agreeTos": true}).then(function(certs) {
-			console.log('Successfully registered ssls certs');
+		leStaging.register({"domains": registered, "email": email, "agreeTos": true}).then(function(certs) {
+			console.log('Successfully TESTED ssls certs');
 
-			if ( polyglot ) polyglot.close();
-
-			polyglot = httpolyglot.createServer({
-			  key: certs.privkey
-			  , cert: certs.cert
-			  , ca: certs.chain
-			}, function(req, res) {
-				if ( ! registered.includes(req.headers.host) ) {
-					httpHttps(req, res);
-				} else {
-					proxy.web(req, res, { target: destination });
-				}
-			});
-			polyglot.listen(443);
-
-			if ( force ) {
-				res.writeHead(302, {'Location': `https://${req.headers.host}${req.url}`});
-				res.end();
+			if ( ! production ) {
+				https(req, res, certs);
 			} else {
-				proxy.web(req, res, { target: destination });
+				leProduction.register({"domains": registered, "email": email, "agreeTos": true}).then(function(certs) {
+					console.log('Successfully REGISTERED ssls certs');
+				
+					https(req, res, certs);
+				}, function(err) {
+					console.log('Error REGISTERING ssl cert');
+					console.log(err);
+
+					res.statusCode = 500;
+					res.write(err.message);
+					res.end();
+				});
 			}
 		}, function(err) {
+			console.log('Error TESTING ssl cert');
 			console.log(err);
 
 			res.statusCode = 500;
@@ -108,3 +106,28 @@ var httpHttps = function(req, res) {
 	}
 }
 
+var polyglot;
+
+function https(req, res, certs) {
+	if ( polyglot ) polyglot.close();
+
+	polyglot = httpolyglot.createServer({
+	  key: certs.privkey
+	  , cert: certs.cert
+	  , ca: certs.chain
+	}, function(req, res) {
+		if ( ! registered.includes(req.headers.host) ) {
+			httpHttps(req, res);
+		} else {
+			proxy.web(req, res, { target: destination });
+		}
+	});
+	polyglot.listen(443);
+
+	if ( force ) {
+		res.writeHead(302, {'Location': `https://${req.headers.host}${req.url}`});
+		res.end();
+	} else {
+		proxy.web(req, res, { target: destination });
+	}
+}
