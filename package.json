@@ -29,7 +29,9 @@
     "express": "^4.16.2",
     "greenlock": "^2.1.17",
     "home": "^1.0.1",
-    "path": "^0.12.7",
-    "redbird": "^0.7.0"
+    "http": "0.0.0",
+    "http-proxy": "^1.16.2",
+    "httpolyglot": "^0.1.2",
+    "path": "^0.12.7"
   }
 }
