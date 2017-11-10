@@ -74,10 +74,12 @@ var register = function(req, res) {
 		console.log('Successfully registered ssls certs');
 		console.log('');
 
-		proxy.register(host, destination, {
-			key: certs.privkey
-			, cert: certs.cert
-			, ca: certs.chain
+		proxy.register(host, destination,  {
+			ssl: {
+				key: certs.privkey
+				, cert: certs.cert
+				, ca: certs.chain
+			}
 		});
 
 		res.writeHead(302, {'Location': req.url});
