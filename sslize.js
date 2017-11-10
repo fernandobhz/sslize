@@ -17,9 +17,11 @@ var path = require('path');
 var email = process.argv[2];
 var destination = process.argv[3];
 var server = process.argv[4] == 'true' ? greenlock.productionServerUrl  :greenlock.stagingServerUrl;
+
+
+var proxy = httpProxy.createProxyServer({xfwd: false});
 var le = greenlock.create({ server: server });
 var leMiddleware = le.middleware();
-
 
 http.createServer(async function(req, res) {
 	var host = req.headers.host;
@@ -27,22 +29,16 @@ http.createServer(async function(req, res) {
 	if ( registered.includes(host) ) {
 		proxy.web(req, res, { target: destination });
 	} else {
-		console.log(''); console.log(''); console.log(''); console.log('');
 		console.log(`Received request ${req.headers.host}${req.url}`);
-		console.log(''); console.log(''); console.log(''); console.log('');
 
 		leMiddleware(req, res, function() {
 			if ( ! registered.includes(host) ) {
-				console.log(''); console.log(''); console.log(''); console.log('');
 				console.log(`Registering ${host} asking lets encrypt`);
-				console.log(''); console.log(''); console.log(''); console.log('');
 
 				registered.push(host);
 
 				le.register({"domains": [host], "email": email, "agreeTos": true}).then(function(certs) {
-					console.log(''); console.log(''); console.log(''); console.log('');
 					console.log('Successfully registered ssls certs');
-					console.log(''); console.log(''); console.log(''); console.log('');					
 					
 					httpolyglot.createServer({
 					  key: certs.privkey
@@ -54,7 +50,7 @@ http.createServer(async function(req, res) {
 					
 					httpProxy.createServer({
 						target: destination
-						ssl: {
+						, ssl: {
 							key: certs.privkey
 							, cert: certs.cert
 							, ca: certs.chain
@@ -63,23 +59,17 @@ http.createServer(async function(req, res) {
 
 					proxy.web(req, res, { target: destination });
 				}, function(err) {
-					console.log(''); console.log(''); console.log(''); console.log('');
 					console.log(err);
-					console.log(''); console.log(''); console.log(''); console.log('');
 
 					res.statusCode = 500;
 					res.write(err.message);
 					res.end;
 				});
 			} else {
-				console.log(''); console.log(''); console.log(''); console.log('');
 				console.log(`Looping back`);
-				console.log(''); console.log(''); console.log(''); console.log('');
 
 				setTimeout(function() {
-					console.log(''); console.log(''); console.log(''); console.log('');
 					console.log(`Looped back`);
-					console.log(''); console.log(''); console.log(''); console.log('');
 
 					res.writeHead(302, {'Location': req.url});
 					res.end();
@@ -88,5 +78,5 @@ http.createServer(async function(req, res) {
 			}
 		});
 	}
-});
+}).listen(80);
 
