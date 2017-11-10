@@ -54,19 +54,9 @@ Registering ${host}
 			registered.push(host);
 			register(req, res);
 		} else {
-console.log(`
-
-Redirection to https ${req.headers.host}${req.url}
-
-`);
-			res.write(`
-				<script>
-					location = 'https://' + location.hostname + location.pathname + location.hash;
-				</script>
-			`);
-			res.end();
+			//that code will never be hit
+			console.log('\n\n\n\n\n\n\n\n\n\n that code never shoud be hit \n\n\n\n\n\n\n\');
 		}
-
 	});
 });
 
