@@ -7,9 +7,11 @@ if (process.argv.length != 5) {
 }
 
 var greenlock = require('greenlock');
+var path = require('path');
 
 var email = process.argv[2];
 var destination = process.argv[3];
+var production = process.argv[4] == 'true' ? true : false;
 var server = process.argv[4] == 'true' ? greenlock.productionServerUrl  :greenlock.stagingServerUrl;
 
 
@@ -23,6 +25,9 @@ var proxy = require('redbird')({
 	, ssl: {
 		port: 443
 		, http2: true
+	}
+	, letsencrypt: {
+		path: path.join(require('home')(), 'letsencrypt')
 	}
 });
 
@@ -54,11 +59,12 @@ console.log(`
 Redirection to https ${req.headers.host}${req.url}
 
 `);
-			res.send(`
+			res.write(`
 				<script>
 					location = 'https://' + location.hostname + location.pathname + location.hash;
 				</script>
 			`);
+			res.end();
 		}
 
 	});
@@ -76,9 +82,10 @@ var register = function(req, res) {
 
 		proxy.register(host, destination,  {
 			ssl: {
-				key: certs.privkey
-				, cert: certs.cert
-				, ca: certs.chain
+				letsencrypt: {
+				  email: email
+				  , production: production
+				}
 			}
 		});
 
@@ -90,7 +97,7 @@ var register = function(req, res) {
 		console.log('');
 
 		res.statusCode = 500;
-		res.send(err.message);
+		res.write(err.message);
 		res.end;
 	});
 }
