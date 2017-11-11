@@ -57,7 +57,7 @@ var httpHttps = function(req, res) {
 		res.statusCode = 500;
 		res.write(errMessage);
 		res.end();
-	} else if ( skip.includes(host) ) {
+	} else if ( ! isNaN(host[0]) ) {
 		console.log(`IP: ${req.headers.host}${req.url}`);
 		proxy.web(req, res, { target: destination });
 	} else if ( skip.includes(host) ) {
@@ -84,7 +84,7 @@ var httpHttps = function(req, res) {
 		console.log(`UN-REGISTERED: ${req.headers.host}${req.url}`);
 		console.log(`CHEKING TOKEN ON LOOPBACK CALL`);
 		
-		request({url: `http://${req.headers.host}`, headers: {'token', token}}, function (err, response, body) {
+		request({url: `http://${req.headers.host}`, headers: {'token': token}}, function (err, response, body) {
 			if ( err ) {
 				console.log(`CHEKING TOKEN: REQUEST ERROR`);
 				console.log(err);
@@ -122,7 +122,7 @@ var httpHttps = function(req, res) {
 				res.statusCode = 500;
 				res.end();
 			}
-		}		
+		});		
 	}
 }
 
