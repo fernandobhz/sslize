@@ -11,6 +11,7 @@ var skip = ['localhost', '127.0.0.1'];
 var httpolyglot = require('httpolyglot');
 var httpProxy = require('http-proxy');
 var greenlock = require('greenlock');
+var request = require('request');
 var http = require('http');
 var path = require('path');
 
@@ -35,6 +36,8 @@ var proxy = httpProxy.createProxyServer({xfwd: false});
 var le = greenlock.create({ server: server });
 var leMiddleware = le.middleware();
 
+var token = Math.random().toString().substring(2);
+
 http.createServer(async function(req, res) {
 	console.log(`Received request ${req.headers.host}${req.url}`);
 
@@ -44,7 +47,6 @@ http.createServer(async function(req, res) {
 
 }).listen(80);
 
-var polyglot;
 
 var httpHttps = function(req, res) {
 	var host = req.headers.host
@@ -69,42 +71,86 @@ var httpHttps = function(req, res) {
 		} else {
 			proxy.web(req, res, { target: destination });
 		}
+	} else if ( req.headers.token ) {
+		if ( req.headers.token == token ) {
+			res.write(token);
+			res.statusCode = 200;
+			res.end();
+		} else {
+			res.statusCode = 500;
+			res.end();
+		}
 	} else {
 		console.log(`UN-REGISTERED: ${req.headers.host}${req.url}`);
-		registered.unshift(host);
+		console.log(`CHEKING TOKEN ON LOOPBACK CALL`);
+		
+		request({url: `http://${req.headers.host}`, headers: {'token', token}}, function (err, response, body) {
+			if ( err ) {
+				console.log(`CHEKING TOKEN: REQUEST ERROR`);
+				console.log(err);
 
-		console.log(`ASK-LETSENCRYPT ${registered}`);
-		le.register({"domains": registered, "email": email, "agreeTos": true}).then(function(certs) {
-			console.log('Successfully registered ssls certs');
-
-			if ( polyglot ) polyglot.close();
-
-			polyglot = httpolyglot.createServer({
-			  key: certs.privkey
-			  , cert: certs.cert
-			  , ca: certs.chain
-			}, function(req, res) {
-				if ( ! registered.includes(req.headers.host) ) {
-					httpHttps(req, res);
-				} else {
-					proxy.web(req, res, { target: destination });
-				}
-			});
-			polyglot.listen(443);
-
-			if ( force ) {
-				res.writeHead(302, {'Location': `https://${req.headers.host}${req.url}`});
+				res.statusCode = 500;
+				res.write(err.message);
 				res.end();
-			} else {
-				proxy.web(req, res, { target: destination });
-			}		
-		}, function(err) {
-			console.log(err);
+			} else if ( body !== token  ) {
+				console.log(`CHEKING TOKEN: TOKEN VERIFY ERROR - UNKNOW REQUEST`);
+				console.log(response);
+				console.log(body);
 
-			res.statusCode = 500;
-			res.write(err.message);
-			res.end();
-		});
+				//sem mensagem essa requisicao é desconhecida e pode ser maliciosa
+				res.statusCode = 500;
+				res.end();
+			} else if ( body === token ) {
+				console.log(`CHEKING TOKEN: SUCCESS`);
+				registered.unshift(host);
+
+				console.log(`ASK-LETSENCRYPT ${registered}`);
+				le.register({"domains": registered, "email": email, "agreeTos": true}).then(
+					function(certs) {
+						https(req, res, certs);
+					}, function(err) {
+						console.log(err);
+
+						res.statusCode = 500;
+						res.write(err.message);
+						res.end();
+					}
+				);
+			} else {
+				console.log('unreachable code was reach');
+				res.write('unreachable code was reach');
+				res.statusCode = 500;
+				res.end();
+			}
+		}		
 	}
+}
+
+var polyglot;
+
+function https(req, res, certs) {
+	console.log('Successfully registered ssls certs');
+
+	if ( polyglot ) polyglot.close();
+
+	polyglot = httpolyglot.createServer({
+	  key: certs.privkey
+	  , cert: certs.cert
+	  , ca: certs.chain
+	}, function(req, res) {
+		if ( ! registered.includes(req.headers.host) ) {
+			httpHttps(req, res);
+		} else {
+			proxy.web(req, res, { target: destination });
+		}
+	});
+	polyglot.listen(443);
+
+	if ( force ) {
+		res.writeHead(302, {'Location': `https://${req.headers.host}${req.url}`});
+		res.end();
+	} else {
+		proxy.web(req, res, { target: destination });
+	}		
 }
 
