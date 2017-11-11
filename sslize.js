@@ -88,9 +88,9 @@ var httpHttps = function(req, res) {
 			if ( err ) {
 				console.log(`CHEKING TOKEN: REQUEST ERROR`);
 				console.log(err);
-
+				
+				//sem mensagem essa requisicao é desconhecida e pode ser maliciosa
 				res.statusCode = 500;
-				res.write(err.message);
 				res.end();
 			} else if ( body !== token  ) {
 				console.log(`CHEKING TOKEN: TOKEN VERIFY ERROR - UNKNOW REQUEST`);
