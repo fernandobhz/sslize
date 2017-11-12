@@ -30,3 +30,8 @@ Only use the productionServer only when you have sure that will work, first test
 [www.fernandobhz.com.br](http://www.fernandobhz.com.br)  
 [www.fernandobhz.com](http://www.fernandobhz.com)  
 [fernandobhz.github.io](http://fernandobhz.github.io)  
+
+# Donate
+
+[https://www.paypalobjects.com/pt_BR/BR/i/btn/btn_donateCC_LG.gif](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=RNDJKX9J6TBRW)
+
