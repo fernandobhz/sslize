@@ -11,8 +11,17 @@ For example an apache ou iis.
 	npm install -g sslize
 
 #Usage  
-  	
-	eg: sslize john@example.com http://localhost:8080 false
+  	sslize email protocol://host:port productionServer(true|false|force)
+  
+#Example
+	sslize john@example.com http://localhost:8080 false
 
-That command will redirect all http on port 80 to port 8080 AND create a server on 443 with lets encrypt ssl then proxy request to port 8080.
+That command will redirect all http on port 80 to port 8080 AND create a server on 443 with lets encrypt ssl then proxy request to port 8080.  
+
+
+#Production
+	sslize john@example.com http://localhost:8080 true
+	
+Only use the productionServer only when you have sure that will work, first test with staging server, setting the last argument to false
+
 
