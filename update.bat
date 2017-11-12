@@ -1,2 +1,2 @@
-git add sslize.js && git commit -m "melhorias" && npm version patch && npm publish
+git add * && git commit -m "melhorias" && git push && npm version patch && npm publish
 
