@@ -33,5 +33,5 @@ Only use the productionServer only when you have sure that will work, first test
 
 # Donate
 
-[https://www.paypalobjects.com/pt_BR/BR/i/btn/btn_donateCC_LG.gif](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=RNDJKX9J6TBRW)
+![https://www.paypalobjects.com/pt_BR/BR/i/btn/btn_donateCC_LG.gif](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=RNDJKX9J6TBRW)
 
