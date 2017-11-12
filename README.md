@@ -1,4 +1,5 @@
 # SSLize
+ 
 Automatic reverse proxy with let's encrypt.  
 All requests received will be create a reverse proxy to port 80.  
 SSL will be generated with let's encrypt for each host in requests.  
@@ -24,4 +25,8 @@ That command will redirect all http on port 80 to port 8080 AND create a server 
 	
 Only use the productionServer only when you have sure that will work, first test with staging server, setting the last argument to false
 
-
+#Credits
+  
+[www.fernandobhz.com.br](www.fernandobhz.com.br)  
+[www.fernandobhz.com](www.fernandobhz.com)  
+[www.fernandobhz.github.io](www.fernandobhz.github.io)  
