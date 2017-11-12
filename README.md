@@ -27,6 +27,6 @@ Only use the productionServer only when you have sure that will work, first test
 
 #Credits
   
-[http://www.fernandobhz.com.br](www.fernandobhz.com.br)  
-[http://www.fernandobhz.com](www.fernandobhz.com)  
-[http://www.fernandobhz.github.io](www.fernandobhz.github.io)  
+[www.fernandobhz.com.br](http://www.fernandobhz.com.br)  
+[www.fernandobhz.com](http://www.fernandobhz.com)  
+[www.fernandobhz.github.io](http://www.fernandobhz.github.io)  
