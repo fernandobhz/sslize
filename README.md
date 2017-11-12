@@ -29,4 +29,4 @@ Only use the productionServer only when you have sure that will work, first test
   
 [www.fernandobhz.com.br](http://www.fernandobhz.com.br)  
 [www.fernandobhz.com](http://www.fernandobhz.com)  
-[www.fernandobhz.github.io](http://www.fernandobhz.github.io)  
+[fernandobhz.github.io](http://fernandobhz.github.io)  
