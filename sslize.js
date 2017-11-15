@@ -78,9 +78,22 @@ var upglot = function() {
 
 
 
-upglot();
+if ( registered.length > 0 ) {
+	upglot();
+}
 
 
+
+var regssl = function(host, callback, error) {
+	return le.register({"domains": [host], "email": email, "agreeTos": true}).then(function() {
+		if ( ! registered.includes(host) ) {
+			registered.unshift(host);
+			registered.save();
+		}
+
+		callback();
+	}, error);
+}
 
 http.createServer(async function(req, res) {
 	console.log(`Received request ${req.headers.host}${req.url}`);
@@ -92,6 +105,7 @@ http.createServer(async function(req, res) {
 }).listen(80);
 
 var httpHttps = function(req, res) {
+	console.log('httpHttps');
 	var host = req.headers.host
 	
 	if ( ! host ) {
@@ -147,14 +161,11 @@ var httpHttps = function(req, res) {
 				console.log(`CHEKING TOKEN: SUCCESS`);
 				console.log(`ASK-LETSENCRYPT ${host}`);
 				
-				le.register({"domains": [host], "email": email, "agreeTos": true}).then(
-					function(certs) {
+				
+				regssl(host, 
+					function(certs) {					
 						console.log('Successfully registered ssl cert');
 						
-						if ( ! registered.includes(host) ) {
-							registered.unshift(host);
-							registered.save();
-						}
 						
 						upglot();
 						
