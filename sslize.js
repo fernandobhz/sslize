@@ -6,14 +6,19 @@ if (process.argv.length != 5) {
 	return;
 }
 
-var registered = [];
 var skip = ['localhost', '127.0.0.1'];
+
+var home = require('home')();
 var httpolyglot = require('httpolyglot');
 var httpProxy = require('http-proxy');
 var greenlock = require('greenlock');
 var request = require('request');
 var http = require('http');
 var path = require('path');
+var fs = require('fs');
+
+
+
 
 
 var email = process.argv[2];
@@ -37,6 +42,21 @@ var le = greenlock.create({ server: server });
 var leMiddleware = le.middleware();
 
 var token = Math.random().toString().substring(2);
+
+
+var fdb = path.join(home, '.sslize.json');
+if ( ! fs.existsSync(fdb) ) fs.writeFileSync(fdb, JSON.stringify([]));
+
+var fcontent = fs.readFileSync(fdb);
+var registered = JSON.parse(fcontent);
+
+registered.save = function() {
+	fs.writeFileSync(fdb, JSON.stringify(registered));
+}
+
+if ( registered.length > 0 ) {
+	startHttps();
+}
 
 http.createServer(async function(req, res) {
 	console.log(`Received request ${req.headers.host}${req.url}`);
@@ -102,12 +122,15 @@ var httpHttps = function(req, res) {
 				res.end();
 			} else if ( body === token ) {
 				console.log(`CHEKING TOKEN: SUCCESS`);
-				registered.unshift(host);
-
 				console.log(`ASK-LETSENCRYPT ${registered}`);
-				le.register({"domains": registered, "email": email, "agreeTos": true}).then(
+				le.register({"domains": [host], "email": email, "agreeTos": true}).then(
 					function(certs) {
-						https(req, res, certs);
+						if ( ! registered.includes(host) ) {
+							registered.unshift(host);
+							registered.save();
+						}
+						
+						startHttps();
 					}, function(err) {
 						console.log(err);
 
@@ -124,6 +147,20 @@ var httpHttps = function(req, res) {
 			}
 		});		
 	}
+}
+
+function startHttps() {
+	le.register({"domains": registered, "email": email, "agreeTos": true}).then(
+		function(certs) {
+			https(req, res, certs);
+		}, function(err) {
+			console.log(err);
+
+			res.statusCode = 500;
+			res.write(err.message);
+			res.end();
+		}
+	);	
 }
 
 var polyglot;
