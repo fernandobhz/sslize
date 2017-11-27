@@ -14,9 +14,9 @@ var home = require('home')();
 var httpProxy = require('http-proxy');
 var greenlock = require('greenlock');
 var request = require('request');
-var httpS = require('httpS');
-var http = require('http');
+var https = require('https');
 var path = require('path');
+var http = require('http');
 var tls = require('tls');
 var fs = require('fs');
 
