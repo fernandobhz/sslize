@@ -65,7 +65,7 @@ registered.save = function() {
 for (let domain of registered) {
 	le.check( {"domains": [domain]} ).then(
 		function(certs) {
-			if ( ! global.ccs ) global.certdb = {};
+			if ( ! global.certdb ) global.certdb = {};
 
 			global.certdb[domain]  = tls.createSecureContext({
 				key: certs.privkey
@@ -88,6 +88,8 @@ var regssl = function(host, callback, error) {
 			registered.unshift(host);
 			registered.save();
 		}
+		
+		if ( ! global.certdb ) global.certdb = {};
 
 		global.certdb[host]  = tls.createSecureContext({
 			key: certs.privkey
@@ -103,15 +105,26 @@ var regssl = function(host, callback, error) {
 
 
 // STARTING HTTP AND HTTPS SERVERS
-console.log(`STARTING : ${registered}`);
+console.log(`STARTING: ${registered}`);
 
 https.createServer({
 	SNICallback: function (domain, cb) {
-		cb(null, ctx);
+		
+		if ( global.certdb && global.certdb[domain] ) {
+			cb(null, global.certdb[domain]);
+		} else {
+			regssl(domain, function() {
+				cb(null, global.certdb[domain]);		
+			});
+		}
+		
 	}
 }, async function(req, res) {
 	console.log(`Received SECURE request ${req.headers.host}${req.url}`);
-	httpHttps(req, res);
+	
+	leMiddleware(req, res, function() {
+		httpHttps(req, res);
+	});
 }).listen(443);
 
 
@@ -145,7 +158,7 @@ var httpHttps = function(req, res) {
 		proxy.web(req, res, { target: destination });
 	} else if ( registered.includes(host) ) {
 		console.log(`REGISTERED: ${req.headers.host}${req.url}`);
-		if ( force ) {
+		if ( force && ! req.socket.encrypted) {
 			res.writeHead(302, {'Location': `https://${req.headers.host}${req.url}`});
 			res.end();
 		} else {
@@ -188,7 +201,7 @@ var httpHttps = function(req, res) {
 					function() {
 						console.log('Successfully registered ssl cert');
 
-						if ( force ) {
+						if ( force && ! req.socket.encrypted) {
 							res.writeHead(302, {'Location': `https://${req.headers.host}${req.url}`});
 							res.end();
 						} else {
