@@ -1,26 +1,28 @@
 #! /usr/bin/env node
 
+// INITIAL CHEKING
 if (process.argv.length != 5) {
 	console.log('Usage: sslize email protocol://host:port productionServer(true|false|force)');
 	console.log(' eg: sslize john@example.com http://localhost:8080 false');
 	return;
 }
 
-var skip = ['localhost', '127.0.0.1'];
 
+
+// REQUIRES
 var home = require('home')();
-var httpolyglot = require('httpolyglot');
 var httpProxy = require('http-proxy');
 var greenlock = require('greenlock');
 var request = require('request');
+var httpS = require('httpS');
 var http = require('http');
 var path = require('path');
+var tls = require('tls');
 var fs = require('fs');
 
 
 
-
-
+// INPUT ARGS
 var email = process.argv[2];
 
 var destination = process.argv[3];
@@ -37,14 +39,16 @@ if ( process.argv[4] == 'force' ) {
 }
 
 
+
+// OBJECTS, REQUIRED
 var proxy = httpProxy.createProxyServer({xfwd: false});
 var le = greenlock.create({ server: server });
 var leMiddleware = le.middleware();
-
 var token = Math.random().toString().substring(2);
 
 
 
+// REGISTERED
 var fdb = path.join(home, '.sslize.json');
 if ( ! fs.existsSync(fdb) ) fs.writeFileSync(fdb, JSON.stringify([]));
 
@@ -55,48 +59,64 @@ registered.save = function() {
 	fs.writeFileSync(fdb, JSON.stringify(registered));
 }
 
-var polyglot;
 
-var upglot = function() {
-	console.log(`UPGLOTING : ${registered}`);
-	le.register({"domains": registered, "email": email, "agreeTos": true}).then(
+
+// CERTDB
+for (let domain of registered) {
+	le.check( {"domains": [domain]} ).then(
 		function(certs) {
-			if ( polyglot ) polyglot.close();
+			if ( ! global.ccs ) global.certdb = {};
 
-			polyglot = httpolyglot.createServer({
-			  key: certs.privkey
-			  , cert: certs.cert
-			  , ca: certs.chain
-			}, httpHttps);
-			
-			polyglot.listen(443);
+			global.certdb[domain]  = tls.createSecureContext({
+				key: certs.privkey
+				, cert: certs.cert
+				, ca: certs.chain
+			});
 		}, function(err) {
-			throw err;		
+			console.log(err);
+			return;
 		}
 	);
 }
 
 
 
-if ( registered.length > 0 ) {
-	upglot();
-}
-
-
-
+// SSL REGISTRATION
 var regssl = function(host, callback, error) {
-	return le.register({"domains": [host], "email": email, "agreeTos": true}).then(function() {
+	return le.register({"domains": [host], "email": email, "agreeTos": true}).then(function(certs) {
 		if ( ! registered.includes(host) ) {
 			registered.unshift(host);
 			registered.save();
 		}
 
+		global.certdb[host]  = tls.createSecureContext({
+			key: certs.privkey
+			, cert: certs.cert
+			, ca: certs.chain
+		});
+
 		callback();
 	}, error);
 }
 
+
+
+
+// STARTING HTTP AND HTTPS SERVERS
+console.log(`STARTING : ${registered}`);
+
+https.createServer({
+	SNICallback: function (domain, cb) {
+		cb(null, ctx);
+	}
+}, async function(req, res) {
+	console.log(`Received SECURE request ${req.headers.host}${req.url}`);
+	httpHttps(req, res);
+}).listen(443);
+
+
 http.createServer(async function(req, res) {
-	console.log(`Received request ${req.headers.host}${req.url}`);
+	console.log(`Received PLAIN request ${req.headers.host}${req.url}`);
 
 	leMiddleware(req, res, function() {
 		httpHttps(req, res);
@@ -104,10 +124,13 @@ http.createServer(async function(req, res) {
 
 }).listen(80);
 
+
+
+// httpHttps application
 var httpHttps = function(req, res) {
-	console.log('httpHttps');
+	var skip = ['localhost', '127.0.0.1'];
 	var host = req.headers.host
-	
+
 	if ( ! host ) {
 		var errMessage = `HOST IS NOT VALID: '${host}'`;
 		console.log(errMessage);
@@ -140,13 +163,13 @@ var httpHttps = function(req, res) {
 	} else {
 		console.log(`UN-REGISTERED: ${req.headers.host}${req.url}`);
 		console.log(`CHEKING TOKEN ON LOOPBACK CALL`);
-		
+
 		request({url: `http://${req.headers.host}`, headers: {'token': token}}, function (err, response, body) {
 			if ( err ) {
 				console.log(`CHEKING TOKEN: REQUEST ERROR`);
 				console.log(err);
-				
-				//sem mensagem essa requisicao é desconhecida e pode ser maliciosa
+
+				// never return something, that can be a malicious request
 				res.statusCode = 500;
 				res.end();
 			} else if ( body !== token  ) {
@@ -154,27 +177,23 @@ var httpHttps = function(req, res) {
 				console.log(response);
 				console.log(body);
 
-				//sem mensagem essa requisicao é desconhecida e pode ser maliciosa
+				// never return something, that can be a malicious request
 				res.statusCode = 500;
 				res.end();
 			} else if ( body === token ) {
 				console.log(`CHEKING TOKEN: SUCCESS`);
 				console.log(`ASK-LETSENCRYPT ${host}`);
-				
-				
-				regssl(host, 
-					function(certs) {					
+
+				regssl(host,
+					function() {
 						console.log('Successfully registered ssl cert');
-						
-						
-						upglot();
-						
+
 						if ( force ) {
 							res.writeHead(302, {'Location': `https://${req.headers.host}${req.url}`});
 							res.end();
 						} else {
 							proxy.web(req, res, { target: destination });
-						}	
+						}
 					}, function(err) {
 						console.log(err);
 
@@ -189,6 +208,6 @@ var httpHttps = function(req, res) {
 				res.statusCode = 500;
 				res.end();
 			}
-		});		
+		});
 	}
 }
