@@ -1,6 +1,6 @@
 #! /usr/bin/env node
 // Strict-Transport-Security: max-age=15768000 ; includeSubDomains
-
+ 
 // INITIAL CHEKING
 if (process.argv.length != 5) {
 	console.log('Usage: sslize email protocol://host:port productionServer(true|false|force)');
