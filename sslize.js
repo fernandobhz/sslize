@@ -1,6 +1,6 @@
 #! /usr/bin/env node
 // Strict-Transport-Security: max-age=15768000 ; includeSubDomains
- 
+
 // INITIAL CHEKING
 if (process.argv.length != 5) {
 	console.log('Usage: sslize email protocol://host:port productionServer(true|false|force)');
@@ -84,22 +84,35 @@ for (let domain of registered) {
 
 // SSL REGISTRATION
 var regssl = function(host, callback, error) {
-	return le.register({"domains": [host], "email": email, "agreeTos": true}).then(function(certs) {
-		if ( ! registered.includes(host) ) {
-			registered.unshift(host);
-			registered.save();
+	request({url: `http://${host}`, headers: {'token': token}}, function (err, response, body) {
+		if ( err ) {
+			error(`CHEKING TOKEN: REQUEST ERROR`);			
+		} else if ( body !== token  ) {
+			error(`CHEKING TOKEN: TOKEN VERIFY ERROR - UNKNOW REQUEST`);			
+		} else if ( body === token ) {
+			console.log(`CHEKING TOKEN: SUCCESS`);
+			console.log(`ASK-LETSENCRYPT ${host}`);
+
+			le.register({"domains": [host], "email": email, "agreeTos": true}).then(function(certs) {
+				console.log('Successfully registered ssl cert');
+				
+				if ( ! registered.includes(host) ) {
+					registered.unshift(host);
+					registered.save();
+				}
+
+				if ( ! global.certdb ) global.certdb = {};
+
+				global.certdb[host]  = tls.createSecureContext({
+					key: certs.privkey
+					, cert: certs.cert
+					, ca: certs.chain
+				});
+
+				callback();
+			}, error);
 		}
-		
-		if ( ! global.certdb ) global.certdb = {};
-
-		global.certdb[host]  = tls.createSecureContext({
-			key: certs.privkey
-			, cert: certs.cert
-			, ca: certs.chain
-		});
-
-		callback();
-	}, error);
+	});
 }
 
 
@@ -110,19 +123,25 @@ console.log(`STARTING: ${registered}`);
 
 https.createServer({
 	SNICallback: function (domain, cb) {
-		
+
 		if ( global.certdb && global.certdb[domain] ) {
 			cb(null, global.certdb[domain]);
 		} else {
-			regssl(domain, function() {
-				cb(null, global.certdb[domain]);		
-			});
+			regssl(domain, 
+				function() {
+					cb(null, global.certdb[domain]);
+				}, function(err) {
+					console.log(err);
+					
+					cb();
+				}
+			);
 		}
-		
+
 	}
 }, async function(req, res) {
 	console.log(`Received SECURE request ${req.headers.host}${req.url}`);
-	
+
 	leMiddleware(req, res, function() {
 		httpHttps(req, res);
 	});
@@ -178,50 +197,21 @@ var httpHttps = function(req, res) {
 		console.log(`UN-REGISTERED: ${req.headers.host}${req.url}`);
 		console.log(`CHEKING TOKEN ON LOOPBACK CALL`);
 
-		request({url: `http://${req.headers.host}`, headers: {'token': token}}, function (err, response, body) {
-			if ( err ) {
-				console.log(`CHEKING TOKEN: REQUEST ERROR`);
+		regssl(host,
+			function() {
+				if ( force && ! req.socket.encrypted) {
+					res.writeHead(302, {'Location': `https://${req.headers.host}${req.url}`});
+					res.end();
+				} else {
+					proxy.web(req, res, { target: destination });
+				}
+			}, function(err) {
 				console.log(err);
 
-				// never return something, that can be a malicious request
-				res.statusCode = 500;
-				res.end();
-			} else if ( body !== token  ) {
-				console.log(`CHEKING TOKEN: TOKEN VERIFY ERROR - UNKNOW REQUEST`);
-				console.log(response);
-				console.log(body);
-
-				// never return something, that can be a malicious request
-				res.statusCode = 500;
-				res.end();
-			} else if ( body === token ) {
-				console.log(`CHEKING TOKEN: SUCCESS`);
-				console.log(`ASK-LETSENCRYPT ${host}`);
-
-				regssl(host,
-					function() {
-						console.log('Successfully registered ssl cert');
-
-						if ( force && ! req.socket.encrypted) {
-							res.writeHead(302, {'Location': `https://${req.headers.host}${req.url}`});
-							res.end();
-						} else {
-							proxy.web(req, res, { target: destination });
-						}
-					}, function(err) {
-						console.log(err);
-
-						res.statusCode = 500;
-						res.write(err.message);
-						res.end();
-					}
-				);
-			} else {
-				console.log('unreachable code was reach');
-				res.write('unreachable code was reach');
 				res.statusCode = 500;
 				res.end();
 			}
-		});
+		);
+
 	}
 }
