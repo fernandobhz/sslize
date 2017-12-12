@@ -162,7 +162,6 @@ http.createServer(async function(req, res) {
 var httpHttps = function(req, res) {
 	var skip = ['localhost', '127.0.0.1'];
 	var host = req.headers.host;
-	var wbvw = iswebview(req.headers['User-Agent']);
 
 	if ( ! host ) {
 		var errMessage = `HOST IS NOT VALID: '${host}'`;
@@ -178,7 +177,7 @@ var httpHttps = function(req, res) {
 		proxy.web(req, res, { target: destination });
 	} else if ( registered.includes(host) ) {
 		console.log(`REGISTERED: ${req.headers.host}${req.url}`);
-		if ( force && ! req.socket.encrypted && ! wbvw ) {
+		if ( force && ! req.socket.encrypted) {
 			res.writeHead(302, {'Location': `https://${req.headers.host}${req.url}`});
 			res.end();
 		} else {
@@ -199,7 +198,7 @@ var httpHttps = function(req, res) {
 
 		regssl(host,
 			function() {
-				if ( force && ! req.socket.encrypted && ! wbvw ) {
+				if ( force && ! req.socket.encrypted) {
 					res.writeHead(302, {'Location': `https://${req.headers.host}${req.url}`});
 					res.end();
 				} else {

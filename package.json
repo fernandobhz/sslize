@@ -33,7 +33,6 @@
     "http": "0.0.0",
     "http-proxy": "^1.16.2",
     "httpolyglot": "^0.1.2",
-    "is-webview": "^1.0.1",
     "path": "^0.12.7",
     "request": "^2.83.0"
   }
