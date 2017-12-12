@@ -70,8 +70,7 @@ for (let domain of registered) {
 
 			global.certdb[domain]  = tls.createSecureContext({
 				key: certs.privkey
-				, cert: certs.cert
-				, ca: certs.chain
+				, cert: certs.cert + certs.chain
 			});
 		}, function(err) {
 			console.log(err);
@@ -105,8 +104,7 @@ var regssl = function(host, callback, error) {
 
 				global.certdb[host]  = tls.createSecureContext({
 					key: certs.privkey
-					, cert: certs.cert
-					, ca: certs.chain
+					, cert: certs.cert + certs.chain
 				});
 
 				callback();
