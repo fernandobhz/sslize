@@ -12,7 +12,6 @@ if (process.argv.length != 5) {
 
 // REQUIRES
 var home = require('home')();
-var iswebview = require('is-webview');
 var httpProxy = require('http-proxy');
 var greenlock = require('greenlock');
 var request = require('request');
