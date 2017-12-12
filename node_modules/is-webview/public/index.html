@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<title>is-webview</title>
+<style>
+body {
+  font-family: Helvetica, Verdana, sans-serif;
+  font-size: 1.5em;
+}
+
+h1 {
+  font-weight: 100;
+  text-transform: uppercase;
+}
+
+input[type="text"]{
+  border: 1px solid #ccc;
+  width: 50%;
+}
+</style>
+<body>
+<h1>is-webview</h1>
+
+<pre><code>iswebview('<input type="text" class="ua" placeholder="navigator.userAgent">');</code></pre>
+
+<h2 class="is-webview" hidden>
+  This document <em>is loaded</em> as a WebView.
+</h2>
+
+<h2 class="is-not-webview" hidden>
+  This document <em>is <b>not</b> loaded</em> as a WebView.
+</h2>
+
+<script src="http://wzrd.in/standalone/in-webview"></script>
+<script src="main.js" async></script>
+</body>
+</html>
