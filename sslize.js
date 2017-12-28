@@ -3,7 +3,7 @@
 
 // INITIAL CHEKING
 if (process.argv.length != 5) {
-	console.log('Usage: sslize email protocol://host:port productionServer(true|false|force)');
+	console.log('Usage: sslize email protocol://host:port productionServer(true|false|force|root)');
 	console.log(' eg: sslize john@example.com http://localhost:8080 false');
 	return;
 }
@@ -31,12 +31,19 @@ var destination = process.argv[3];
 if ( process.argv[4] == 'force' ) {
 	var server = greenlock.productionServerUrl;
 	var force = true;
+	var root = false;
+} if ( process.argv[4] == 'root' ) {
+	var server = greenlock.productionServerUrl;
+	var root = true;
+	var force = false;
 } else if ( process.argv[4] == 'true') {
 	var server = greenlock.productionServerUrl;
 	var force = false;
+	var root = false;
 } else {
 	var server = greenlock.stagingServerUrl;
 	var force = false;
+	var root = false;
 }
 
 
@@ -179,6 +186,9 @@ var httpHttps = function(req, res) {
 		if ( force && ! req.socket.encrypted) {
 			res.writeHead(302, {'Location': `https://${req.headers.host}${req.url}`});
 			res.end();
+		} else if ( root && ! req.socket.encrypted && req.url == '/') {
+			res.writeHead(302, {'Location': `https://${req.headers.host}`});
+			res.end();
 		} else {
 			proxy.web(req, res, { target: destination });
 		}
@@ -199,6 +209,9 @@ var httpHttps = function(req, res) {
 			function() {
 				if ( force && ! req.socket.encrypted) {
 					res.writeHead(302, {'Location': `https://${req.headers.host}${req.url}`});
+					res.end();
+				} else if ( root && ! req.socket.encrypted && req.url == '/' ) {
+					res.writeHead(302, {'Location': `https://${req.headers.host}`});
 					res.end();
 				} else {
 					proxy.web(req, res, { target: destination });
