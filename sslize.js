@@ -32,7 +32,7 @@ if ( process.argv[4] == 'force' ) {
 	var server = greenlock.productionServerUrl;
 	var force = true;
 	var root = false;
-} if ( process.argv[4] == 'root' ) {
+} else if ( process.argv[4] == 'root' ) {
 	var server = greenlock.productionServerUrl;
 	var root = true;
 	var force = false;
