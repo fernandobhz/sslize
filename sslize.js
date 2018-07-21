@@ -22,11 +22,6 @@ var tls = require('tls');
 var fs = require('fs');
 
 
-console.log("ARGUMENTS RECEIVED");
-console.log("-------------------------------------------");
-console.log(process.argv);
-console.log("-------------------------------------------");
-
 // INPUT ARGS
 var email = process.argv[2];
 
@@ -50,6 +45,20 @@ if ( process.argv[4] == 'force' ) {
 	var root = false;
 }
 
+
+console.log("ARGUMENTS RECEIVED");
+console.log("-------------------------------------------");
+console.log(process.argv);
+console.log("-------------------------------------------");
+console.log(`
+PARSED: 
+	email: ${email}
+	destination: ${destination]
+	server: ${server}
+	force: ${force}
+	root: ${root}
+`);
+console.log("-------------------------------------------");
 
 
 // OBJECTS, REQUIRED
