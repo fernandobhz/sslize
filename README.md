@@ -12,7 +12,7 @@ For example an apache ou iis.
 	npm install -g sslize
 
 # Usage  
-  	sslize email protocol://host:port productionServer(true|false|force)
+  	sslize email protocol://host:port productionServer(true|false|force|root)
   
 # Example
 	sslize john@example.com http://localhost:8080 false
