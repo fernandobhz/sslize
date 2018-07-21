@@ -53,7 +53,7 @@ console.log("-------------------------------------------");
 console.log(`
 PARSED: 
 	email: ${email}
-	destination: ${destination]
+	destination: ${destination}
 	server: ${server}
 	force: ${force}
 	root: ${root}
