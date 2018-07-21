@@ -1,4 +1,8 @@
-git add * && git commit -m "melhorias" && git push && npm version patch && npm publish
+git add -A
+git commit -m "melhorias"
+git push
+call npm version patch
+call npm publish
 pause
 
 
