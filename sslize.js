@@ -22,6 +22,10 @@ var tls = require('tls');
 var fs = require('fs');
 
 
+console.log("ARGUMENTS RECEIVED");
+console.log("-------------------------------------------");
+console.log(process.argv);
+console.log("-------------------------------------------");
 
 // INPUT ARGS
 var email = process.argv[2];
