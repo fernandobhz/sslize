@@ -62,7 +62,7 @@ console.log("-------------------------------------------");
 
 
 // OBJECTS, REQUIRED
-var proxy = httpProxy.createProxyServer({xfwd: false});
+var proxy = httpProxy.createProxyServer({xfwd: true});
 var le = greenlock.create({ server: server });
 var leMiddleware = le.middleware();
 var token = Math.random().toString().substring(2);
