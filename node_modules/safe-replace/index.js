@@ -1,7 +1,17 @@
 'use strict';
 
-var PromiseA = require('bluebird').Promise;
-var fs = PromiseA.promisifyAll(require('fs'));
+var PromiseA;
+try {
+  PromiseA = require('bluebird');
+} catch(e) {
+  PromiseA = global.Promise;
+}
+
+var util = require('util');
+var fs = require('fs');
+var writeFileAsync = util.promisify(fs.writeFile);
+var unlinkAsync = util.promisify(fs.unlink);
+var renameAsync = util.promisify(fs.rename);
 var crypto = require('crypto');
 
 function noop() {
@@ -44,23 +54,23 @@ function create(options) {
   , stageAsync: function (filename, data, options) {
       var tmpname = tmpnamefn(filename);
       //console.log(tmpname);
-      return fs.writeFileAsync(tmpname, data, options).then(function () {
+      return writeFileAsync(tmpname, data, options).then(function () {
         return tmpname;
       });
     }
   , commitAsync: function (tmpname, filename) {
       var bakname = baknamefn(filename);
       // this may not exist
-      return fs.unlinkAsync(bakname).then(noop, noop).then(function () {
+      return unlinkAsync(bakname).then(noop, noop).then(function () {
         // this may not exist
         //console.log(namefn(filename), '->', bakname);
-        return fs.renameAsync(filename, bakname).then(function () {
+        return renameAsync(filename, bakname).then(function () {
           //console.log('created bak');
         }, noop);
       }).then(function () {
         // this must be successful
         //console.log(filename, '->', filename);
-        return fs.renameAsync(tmpname, filename).then(noop, function (err) {
+        return renameAsync(tmpname, filename).then(noop, function (err) {
           //console.error(err);
           return sfs.revert(filename).then(function () {
             return PromiseA.reject(err);

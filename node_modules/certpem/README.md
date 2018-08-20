@@ -3,6 +3,8 @@ cert-info.js
 
 Read basic info from a cert.pem / x509 certificate.
 
+Used for [Greenlock.js](https://git.coolaj86.com/coolaj86/greenlock-express.js)
+
 Install
 =======
 
@@ -41,6 +43,7 @@ var cert = fs.readFile('cert.pem', 'ascii', function (err, certstr) {
   console.info(certpem.info(certstr));
 
   // way too much info
+  // (requires npm install --save node.extend@1)
   console.info(certpem.debug(certstr));
 
 });

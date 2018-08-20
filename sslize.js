@@ -2,9 +2,10 @@
 // Strict-Transport-Security: max-age=15768000 ; includeSubDomains
 
 // INITIAL CHEKING
-if (process.argv.length < 6) {
+if (process.argv.length < 5) {
 	console.log('Usage: sslize email protocol://host:port productionServer(true|false|force|root)');
 	console.log(' eg: sslize john@example.com http://localhost:8080 false');
+	console.log(process.argv);
 	return;
 }
 
@@ -26,6 +27,8 @@ var fs = require('fs');
 var email = process.argv[2];
 
 var destination = process.argv[3];
+greenlock.productionServerUrl = 'https://acme-v02.api.letsencrypt.org/directory';
+greenlock.stagingServerUrl = 'https://acme-staging-v02.api.letsencrypt.org/directory';
 
 if ( process.argv[4] == 'force' ) {
 	var server = greenlock.productionServerUrl;
@@ -63,7 +66,7 @@ console.log("-------------------------------------------");
 
 // OBJECTS, REQUIRED
 var proxy = httpProxy.createProxyServer({xfwd: true});
-var le = greenlock.create({ server: server });
+var le = greenlock.create({ server: server, version: 'draft-12' });
 var leMiddleware = le.middleware();
 var token = Math.random().toString().substring(2);
 
