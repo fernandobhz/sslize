@@ -86,11 +86,22 @@ registered.save = function() {
 
 
 // CERTDB
-for (let domain of registered) {
+for (let i = 0; i < registered.length; i++) {
+	let domain = registered[i];
+	
 	le.check( {"domains": [domain]} ).then(
 		function(certs) {
 			if ( ! global.certdb ) global.certdb = {};
 
+			//delete expired certs
+			var expires = certs._expiresAt;
+			
+			if ( expires < new Date() ) {
+				registered.splice(i, 1);
+				i--;
+				return;
+			}
+			
 			global.certdb[domain]  = tls.createSecureContext({
 				key: certs.privkey
 				, cert: certs.cert + certs.chain
@@ -171,7 +182,7 @@ https.createServer({
 
 http.createServer(async function(req, res) {
 	console.log(`Received PLAIN request ${req.headers.host}${req.url}`);
-
+	
 	leMiddleware(req, res, function() {
 		httpHttps(req, res);
 	});
@@ -199,6 +210,8 @@ var httpHttps = function(req, res) {
 		proxy.web(req, res, { target: destination });
 	} else if ( registered.includes(host) ) {
 		console.log(`REGISTERED: ${req.headers.host}${req.url}`);
+		
+		
 		if ( force && ! req.socket.encrypted) {
 			res.writeHead(302, {'Location': `https://${req.headers.host}${req.url}`});
 			res.end();
