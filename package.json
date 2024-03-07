@@ -28,6 +28,7 @@
   "dependencies": {
     "express": "^4.18.3",
     "greenlock": "^2.3.13",
+    "greenlock-store-fs": "^3.2.2",
     "home": "^1.0.1",
     "http-proxy": "^1.17.0",
     "httpolyglot": "^0.1.2",

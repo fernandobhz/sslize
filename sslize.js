@@ -12,9 +12,12 @@ if (process.argv.length < 5) {
 // REQUIRES
 const home = require('home')();
 const httpProxy = require('http-proxy');
-const greenlock = require('greenlock-express').create({
-    packageAgent: 'sslize/1.3.55'
+
+const greenlock = require('greenlock').create({
+    packageAgent: 'sslize/1.3.55',
+    store: require('greenlock-store-fs'),
 });
+
 const request = require('request');
 const https = require('https');
 const path = require('path');
