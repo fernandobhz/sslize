@@ -27,14 +27,10 @@
   "homepage": "https://github.com/fernandobhz/sslize#readme",
   "dependencies": {
     "axios": "^1.6.7",
-    "express": "^4.18.3",
-    "greenlock": "^2.3.13",
+    "greenlock": "^4.0.4",
     "greenlock-store-fs": "^3.2.2",
     "home": "^1.0.1",
     "http-proxy": "^1.17.0",
-    "httpolyglot": "^0.1.2",
-    "le-acme-core": "^2.1.4",
-    "path": "^0.12.7",
-    "request": "^2.88.0"
+    "httpolyglot": "^0.1.2"
   }
 }
