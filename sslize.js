@@ -167,16 +167,16 @@ https.createServer({
     }
 }, async function (req, res) {
     console.log(`Received SECURE request ${req.headers.host}${req.url}`);
-    greenlock.middleware(req, res, function () {
-        httpHttps(req, res);
-    });
+	greenlock.middleware()(req, res, function () {
+		httpHttps(req, res);
+	});
 }).listen(443);
 
 http.createServer(async function (req, res) {
     console.log(`Received PLAIN request ${req.headers.host}${req.url}`);
-    greenlock.middleware(req, res, function () {
-        httpHttps(req, res);
-    });
+	greenlock.middleware()(req, res, function () {
+		httpHttps(req, res);
+	});
 }).listen(80);
 
 // httpHttps application
