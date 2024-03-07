@@ -37,7 +37,10 @@ module.exports = json
  *            %x0D )              ; Carriage return
  */
 
-var FIRST_CHAR_REGEXP = /^[\x20\x09\x0a\x0d]*(.)/ // eslint-disable-line no-control-regex
+var FIRST_CHAR_REGEXP = /^[\x20\x09\x0a\x0d]*([^\x20\x09\x0a\x0d])/ // eslint-disable-line no-control-regex
+
+var JSON_SYNTAX_CHAR = '#'
+var JSON_SYNTAX_REGEXP = /#+/g
 
 /**
  * Create a middleware to parse JSON bodies.
@@ -89,6 +92,7 @@ function json (options) {
       return JSON.parse(body, reviver)
     } catch (e) {
       throw normalizeJsonSyntaxError(e, {
+        message: e.message,
         stack: e.stack
       })
     }
@@ -121,7 +125,7 @@ function json (options) {
 
     // assert charset per RFC 7159 sec 8.1
     var charset = getCharset(req) || 'utf-8'
-    if (charset.substr(0, 4) !== 'utf-') {
+    if (charset.slice(0, 4) !== 'utf-') {
       debug('invalid charset')
       next(createError(415, 'unsupported charset "' + charset.toUpperCase() + '"', {
         charset: charset,
@@ -151,13 +155,23 @@ function json (options) {
 
 function createStrictSyntaxError (str, char) {
   var index = str.indexOf(char)
-  var partial = str.substring(0, index) + '#'
+  var partial = ''
+
+  if (index !== -1) {
+    partial = str.substring(0, index) + JSON_SYNTAX_CHAR
+
+    for (var i = index + 1; i < str.length; i++) {
+      partial += JSON_SYNTAX_CHAR
+    }
+  }
 
   try {
     JSON.parse(partial); /* istanbul ignore next */ throw new SyntaxError('strict violation')
   } catch (e) {
     return normalizeJsonSyntaxError(e, {
-      message: e.message.replace('#', char),
+      message: e.message.replace(JSON_SYNTAX_REGEXP, function (placeholder) {
+        return str.substring(index, index + placeholder.length)
+      }),
       stack: e.stack
     })
   }
@@ -172,7 +186,11 @@ function createStrictSyntaxError (str, char) {
  */
 
 function firstchar (str) {
-  return FIRST_CHAR_REGEXP.exec(str)[1]
+  var match = FIRST_CHAR_REGEXP.exec(str)
+
+  return match
+    ? match[1]
+    : undefined
 }
 
 /**
@@ -208,12 +226,9 @@ function normalizeJsonSyntaxError (error, obj) {
     }
   }
 
-  var props = Object.keys(obj)
-
-  for (var j = 0; j < props.length; j++) {
-    var prop = props[j]
-    error[prop] = obj[prop]
-  }
+  // replace stack before message for Node.js 0.10 and below
+  error.stack = obj.stack.replace(error.message, obj.message)
+  error.message = obj.message
 
   return error
 }
