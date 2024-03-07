@@ -69,8 +69,10 @@ PARSED:
     isProductionServer: ${isProductionServer}
     isStagingServer: ${isStagingServer}
 
-	homedir/sslize.json.......exists? ${sslizeJsonDatabasePathFileExists ? "YES" : "NO"}
+  sslize.json...............exists? ${sslizeJsonDatabasePathFileExists ? "YES" : "NO"}
+  greenlock config file.....exists? ${greenlockConfigFile ? "YES" : "NO"}
 	letsencrypt data path.....exists? ${letsEncryptDataPathExists ? "YES" : "NO"}
+  
 `);
 log("-------------------------------------------");
 
