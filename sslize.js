@@ -36,7 +36,6 @@ const GreenLockStoreFs = require("greenlock-store-fs");
 const [email, destinationServer, isProductionServerString] = process.argv.slice(2);
 const isProductionServer = isProductionServerString === "true";
 const isStagingServer = !isProductionServer;
-debugger;
 
 // OBJECTS, REQUIRED
 const proxy = httpProxy.createProxyServer({ xfwd: true });
@@ -76,6 +75,7 @@ PARSED:
 `);
 log("-------------------------------------------");
 
+debugger;
 const greenlock = GreenLock.create({
   configDir: greenlockConfigFile,
   staging: isStagingServer,
