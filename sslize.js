@@ -12,12 +12,6 @@ if (process.argv.length < 5) {
 // REQUIRES
 const home = require('home')();
 const httpProxy = require('http-proxy');
-
-const greenlock = require('greenlock').create({
-    packageAgent: 'sslize/1.3.55',
-    store: require('greenlock-store-fs'),
-});
-
 const request = require('request');
 const axios = require('axios');
 const https = require('https');
@@ -65,6 +59,12 @@ PARSED:
     root: ${root}
 `);
 console.log("-------------------------------------------");
+
+const greenlock = require('greenlock').create({
+	server,
+    packageAgent: 'sslize/1.3.55',
+    store: require('greenlock-store-fs'),
+});
 
 // OBJECTS, REQUIRED
 const proxy = httpProxy.createProxyServer({ xfwd: true });
@@ -120,6 +120,10 @@ async function registerSSL(host, callback, error) {
 			console.log(`CHEKING TOKEN: SUCCESS`);
 			console.log(`ASK-LETSENCRYPT ${host}`);
 
+			
+			/** aqui acontece o erro
+			colocar uma protecao para nao tentar novamente caso de erro no registro
+			pois tem limite, mesmo no staging server **/
 			greenlock.register({"domains": [host], "email": email, "agreeTos": true}).then(function(certs) {
 				console.log('Successfully registered ssl cert');
 				
