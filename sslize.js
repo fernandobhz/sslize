@@ -19,6 +19,7 @@ const greenlock = require('greenlock').create({
 });
 
 const request = require('request');
+const axios = require('axios');
 const https = require('https');
 const path = require('path');
 const http = require('http');
@@ -111,8 +112,12 @@ async function loadCertificates() {
 // SSL REGISTRATION
 async function registerSSL(host, callback, error) {
     try {
-        const response = await request({ url: `http://${host}`, headers: { 'token': token } });
-        if (response !== token) {
+
+		const url = `http://${host}`;
+		const headers = { headers: { 'token': token } };
+		const { data: responseToken } = await axios.get(url, { headers } );
+
+        if (responseToken !== token) {
             error(`CHECKING TOKEN: TOKEN VERIFY ERROR - UNKNOWN REQUEST`);
         } else {
             console.log(`CHECKING TOKEN: SUCCESS`);
