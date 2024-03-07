@@ -129,12 +129,12 @@ async function loadCertificates() {
 async function registerSSL(host, successCallback, errorCallback) {
   request({ url: `http://${host}`, headers: { sslizetoken: sslizetoken } }, function (err, response, body) {
     if (err) {
-      errorCallback(`CHEKING TOKEN: REQUEST ERROR`);
+      errorCallback(`Checking token: Request Error`);
     } else if (body !== sslizetoken) {
-      errorCallback(`CHEKING TOKEN: TOKEN VERIFY ERROR - UNKNOW REQUEST`);
+      errorCallback(`Checking token: Token verify error - unknow request`);
     } else if (body === sslizetoken) {
-      log(`CHEKING TOKEN: SUCCESS`);
-      log(`ASK-LETSENCRYPT ${host}`);
+      log(`Checking token: Success`);
+      log(`Asking lets encrypt: '${host}'`);
 
       debugger;
       greenlock.add({ subject: host }).then(function (certs) {
