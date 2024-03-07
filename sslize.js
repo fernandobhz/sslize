@@ -65,9 +65,9 @@ log("-------------------------------------------");
 log(`
 PARSED: 
 	maintainerEmail: ${email}
-    destinationServer: ${destinationServer}
-    isProductionServer: ${isProductionServer}
-    isStagingServer: ${isStagingServer}
+  destinationServer: ${destinationServer}
+  isProductionServer: ${isProductionServer}
+  isStagingServer: ${isStagingServer}
 
   sslize.json...............exists? ${sslizeJsonDatabasePathFileExists ? "YES" : "NO"}
   greenlock config file.....exists? ${greenlockConfigFile ? "YES" : "NO"}
