@@ -120,7 +120,7 @@ async function registerSSL(host, callback, error) {
 			console.log(`CHEKING TOKEN: SUCCESS`);
 			console.log(`ASK-LETSENCRYPT ${host}`);
 
-			le.register({"domains": [host], "email": email, "agreeTos": true}).then(function(certs) {
+			greenlock.register({"domains": [host], "email": email, "agreeTos": true}).then(function(certs) {
 				console.log('Successfully registered ssl cert');
 				
 				if ( ! registered.includes(host) ) {
