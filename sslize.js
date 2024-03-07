@@ -71,7 +71,7 @@ PARSED:
 
   sslize.json...............exists? ${doesSslizeJsonDatabasePath ? "YES" : "NO"}
   greenlock config file.....exists? ${greenlockConfigFile ? "YES" : "NO"}
-	letsencrypt data path.....exists? ${letsEncryptDataPathExists ? "YES" : "NO"}
+	letsencrypt data path.....exists? ${doesLetsEncryptDataPathExists ? "YES" : "NO"}
   
 `);
 log("-------------------------------------------");
