@@ -111,45 +111,34 @@ async function loadCertificates() {
 
 // SSL REGISTRATION
 async function registerSSL(host, callback, error) {
-    try {
+	request({url: `http://${host}`, headers: {'token': token}}, function (err, response, body) {
+		if ( err ) {
+			error(`CHEKING TOKEN: REQUEST ERROR`);			
+		} else if ( body !== token  ) {
+			error(`CHEKING TOKEN: TOKEN VERIFY ERROR - UNKNOW REQUEST`);			
+		} else if ( body === token ) {
+			console.log(`CHEKING TOKEN: SUCCESS`);
+			console.log(`ASK-LETSENCRYPT ${host}`);
 
-		const url = `http://${host}`;
-		const headers = { headers: { 'token': token } };
-		const { data: responseToken } = await axios.get(url, { headers } );
+			le.register({"domains": [host], "email": email, "agreeTos": true}).then(function(certs) {
+				console.log('Successfully registered ssl cert');
+				
+				if ( ! registered.includes(host) ) {
+					registered.unshift(host);
+					registered.save();
+				}
 
-        if (responseToken !== token) {
-            error(`CHECKING TOKEN: TOKEN VERIFY ERROR - UNKNOWN REQUEST`);
-        } else {
-            console.log(`CHECKING TOKEN: SUCCESS`);
-            console.log(`ASK-LETSENCRYPT ${host}`);
+				if ( ! global.certdb ) global.certdb = {};
 
-            const certs = await greenlock.register({
-                domains: [host],
-                email: email,
-                agreeTos: true,
-                challengeType: 'http-01'
-            });
+				global.certdb[host]  = tls.createSecureContext({
+					key: certs.privkey
+					, cert: certs.cert + certs.chain
+				});
 
-            console.log('Successfully registered SSL cert');
-
-            if (!registered.includes(host)) {
-                registered.unshift(host);
-                saveRegistered();
-            }
-
-            if (!global.certdb) global.certdb = {};
-
-            global.certdb[host] = tls.createSecureContext({
-                key: certs.privkey,
-                cert: certs.cert + certs.chain
-            });
-
-            callback();
-        }
-    } catch (err) {
-        console.log(err);
-        error(err);
-    }
+				callback();
+			}, error);
+		}
+	});
 }
 
 // STARTING HTTP AND HTTPS SERVERS
