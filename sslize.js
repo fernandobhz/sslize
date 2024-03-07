@@ -1,239 +1,234 @@
 #! /usr/bin/env node
 // Strict-Transport-Security: max-age=15768000 ; includeSubDomains
 
-// INITIAL CHECKING
+function log(...args) {
+  console.log(new Date().toISOString(), ...args);
+}
+
+function die(...args) {
+  log(...args);
+  process.exit(1);
+}
+
+// Initial Checking
 if (process.argv.length < 5) {
-    console.log('Usage: sslize email protocol://host:port productionServer(true|false|force|root)');
-    console.log(' eg: sslize john@example.com http://localhost:8080 false');
-    console.log(process.argv);
-    process.exit(1);
+  log("Usage: sslize email protocol://host:port productionServer(true|false)");
+  log(" eg: sslize john@example.com http://destinationServer-web-server.com:8080 false");
+  log(process.argv);
+  process.exit(1);
 }
 
 // REQUIRES
-const home = require('home')();
-const httpProxy = require('http-proxy');
-const request = require('request');
-const axios = require('axios');
-const https = require('https');
-const path = require('path');
-const http = require('http');
-const tls = require('tls');
-const fs = require('fs');
+const home = require("home")();
+const httpProxy = require("http-proxy");
+const projectPackageJson = require("./package.json");
+const request = require("request");
+const axios = require("axios");
+const https = require("https");
+const path = require("path");
+const http = require("http");
+const tls = require("tls");
+const fs = require("fs");
+const GreenLock = require("greenlock");
+const GreenLockStoreFs = require("greenlock-store-fs");
 
 // INPUT ARGS
-const email = process.argv[2];
-const destination = process.argv[3];
-const productionServerUrl = 'https://acme-v02.api.letsencrypt.org/directory';
-const stagingServerUrl = 'https://acme-staging-v02.api.letsencrypt.org/directory';
-
-let server, force, root;
-
-if (process.argv[4] === 'force') {
-    server = productionServerUrl;
-    force = true;
-    root = false;
-} else if (process.argv[4] === 'root') {
-    server = productionServerUrl;
-    root = true;
-    force = false;
-} else if (process.argv[4] === 'true') {
-    server = productionServerUrl;
-    force = false;
-    root = false;
-} else {
-    server = stagingServerUrl;
-    force = false;
-    root = false;
-}
-
-console.log("ARGUMENTS RECEIVED");
-console.log("-------------------------------------------");
-console.log(process.argv);
-console.log("-------------------------------------------");
-console.log(`
-PARSED: 
-    email: ${email}
-    destination: ${destination}
-    server: ${server}
-    force: ${force}
-    root: ${root}
-`);
-console.log("-------------------------------------------");
-
-const greenlock = require('greenlock').create({
-	server,
-    packageAgent: 'sslize/1.3.55',
-    store: require('greenlock-store-fs'),
-});
+const [email, destinationServer, isProductionServerString] = process.argv.slice(2);
+const isProductionServer = isProductionServerString === "true";
+const isStagingServer = !isProductionServer;
+debugger;
 
 // OBJECTS, REQUIRED
 const proxy = httpProxy.createProxyServer({ xfwd: true });
-const token = Math.random().toString().substring(2);
+const sslizetoken = Math.random().toString().substring(2);
 
 // REGISTERED
-const fdb = path.join(home, '.sslize.json');
-const registered = loadRegistered();
+const sslizeJsonDatabasePath = path.join(home, ".sslize.json");
+const doesSslizeJsonDatabasePath = !!fs.existsSync(sslizeJsonDatabasePath);
+
+const letsEncryptDataPath = path.join(home, "letsencrypt");
+const doesLetsEncryptDataPathExists = !!fs.existsSync(letsEncryptDataPath);
+
+const greenlockConfigFile = path.join(home, ".greenlock-config.json");
+const doesGreenlockConfigFile = !!fs.existsSync(greenlockConfigFile);
+
+const doesAnyConfigFileExists = doesSslizeJsonDatabasePath || doesLetsEncryptDataPathExists || doesGreenlockConfigFile;
+
+if (isStagingServer && doesAnyConfigFileExists) {
+  die(`Can't have .sslize.json in home directory and/or letsencrypt folder when using staging server`);
+}
+
+log("ARGUMENTS RECEIVED");
+log("-------------------------------------------");
+log(process.argv);
+log("-------------------------------------------");
+log(`
+PARSED: 
+	maintainerEmail: ${email}
+    destinationServer: ${destinationServer}
+    isProductionServer: ${isProductionServer}
+    isStagingServer: ${isStagingServer}
+
+	homedir/sslize.json.......exists? ${sslizeJsonDatabasePathFileExists ? "YES" : "NO"}
+	letsencrypt data path.....exists? ${letsEncryptDataPathExists ? "YES" : "NO"}
+`);
+log("-------------------------------------------");
+
+const greenlock = GreenLock.create({
+  configDir: greenlockConfigFile,
+  staging: isStagingServer,
+  maintainerEmail: email,
+  packageAgent: `${projectPackageJson.name}/${projectPackageJson.version}`,
+  store: GreenLockStoreFs,
+});
+
+const registeredCertificates = loadRegistered();
 
 function loadRegistered() {
-    if (!fs.existsSync(fdb)) fs.writeFileSync(fdb, JSON.stringify([]));
-    const fcontent = fs.readFileSync(fdb);
-    return JSON.parse(fcontent);
+  if (!doesLetsEncryptDataPathExists) {
+    fs.writeFileSync(sslizeJsonDatabasePath, JSON.stringify({}));
+  }
+
+  const sslizeDatabaseContents = fs.readFileSync(sslizeJsonDatabasePath, "utf8");
+  const sslizeDatabaseData = JSON.parse(sslizeDatabaseContents);
+  return sslizeDatabaseData;
 }
 
 function saveRegistered() {
-    fs.writeFileSync(fdb, JSON.stringify(registered));
+  fs.writeFileSync(sslizeJsonDatabasePath, JSON.stringify(registeredCertificates));
 }
 
-// CERTDB
+// Certdb
 async function loadCertificates() {
-    for (const domain of registered) {
-        try {
-            const certs = await greenlock.check({ domains: [domain] });
-            if (!global.certdb) global.certdb = {};
+  for (const domain of registeredCertificates) {
+    try {
+      const certs = await greenlock.get({ servername: domain });
+      if (!global.certdb) global.certdb = {};
 
-            const expires = certs._expiresAt;
+      const expires = certs._expiresAt;
 
-            if (expires < new Date()) {
-                registered.splice(registered.indexOf(domain), 1);
-                return;
-            }
+      if (expires < new Date()) {
+        registeredCertificates.splice(registeredCertificates.indexOf(domain), 1);
+        return;
+      }
 
-            global.certdb[domain] = tls.createSecureContext({
-                key: certs.privkey,
-                cert: certs.cert + certs.chain
-            });
-        } catch (err) {
-            console.log(err);
-            return;
-        }
+      global.certdb[domain] = tls.createSecureContext({
+        key: certs.privkey,
+        cert: certs.cert + certs.chain,
+      });
+    } catch (err) {
+      log(err);
+      return;
     }
+  }
 }
 
-// SSL REGISTRATION
-async function registerSSL(host, callback, error) {
-	request({url: `http://${host}`, headers: {'token': token}}, function (err, response, body) {
-		if ( err ) {
-			error(`CHEKING TOKEN: REQUEST ERROR`);			
-		} else if ( body !== token  ) {
-			error(`CHEKING TOKEN: TOKEN VERIFY ERROR - UNKNOW REQUEST`);			
-		} else if ( body === token ) {
-			console.log(`CHEKING TOKEN: SUCCESS`);
-			console.log(`ASK-LETSENCRYPT ${host}`);
+// SSL Registration
+async function registerSSL(host, successCallback, errorCallback) {
+  request({ url: `http://${host}`, headers: { sslizetoken: sslizetoken } }, function (err, response, body) {
+    if (err) {
+      errorCallback(`CHEKING TOKEN: REQUEST ERROR`);
+    } else if (body !== sslizetoken) {
+      errorCallback(`CHEKING TOKEN: TOKEN VERIFY ERROR - UNKNOW REQUEST`);
+    } else if (body === sslizetoken) {
+      log(`CHEKING TOKEN: SUCCESS`);
+      log(`ASK-LETSENCRYPT ${host}`);
 
-			
-			/** aqui acontece o erro
-			colocar uma protecao para nao tentar novamente caso de erro no registro
-			pois tem limite, mesmo no staging server **/
-			greenlock.register({"domains": [host], "email": email, "agreeTos": true}).then(function(certs) {
-				console.log('Successfully registered ssl cert');
-				
-				if ( ! registered.includes(host) ) {
-					registered.unshift(host);
-					registered.save();
-				}
+      debugger;
+      greenlock.add({ subject: host }).then(function (certs) {
+        log("Successfully registeredCertificates ssl cert");
+        registeredCertificates[host] = certs;
+        saveRegistered();
 
-				if ( ! global.certdb ) global.certdb = {};
+        if (!global.certdb) {
+          global.certdb = {};
+        }
 
-				global.certdb[host]  = tls.createSecureContext({
-					key: certs.privkey
-					, cert: certs.cert + certs.chain
-				});
+        global.certdb[host] = tls.createSecureContext({
+          key: certs.privkey,
+          cert: certs.cert + certs.chain,
+        });
 
-				callback();
-			}, error);
-		}
-	});
+        successCallback();
+      }, errorCallback);
+    }
+  });
 }
 
-// STARTING HTTP AND HTTPS SERVERS
-console.log(`STARTING: ${registered}`);
+// Starting HTTP and HTTPS Servers
+log(`Starting: ${Object.keys(registeredCertificates).join(", ")}`);
 
-https.createServer({
-    SNICallback: function (domain, cb) {
+https
+  .createServer(
+    {
+      SNICallback: function (domain, callBack) {
         if (global.certdb && global.certdb[domain]) {
-            cb(null, global.certdb[domain]);
+          callBack(null, global.certdb[domain]);
         } else {
-            registerSSL(domain,
-                function () {
-                    cb(null, global.certdb[domain]);
-                }, function (err) {
-                    console.log(err);
-                    cb();
-                }
-            );
-        }
-    }
-}, async function (req, res) {
-    console.log(`Received SECURE request ${req.headers.host}${req.url}`);
-	greenlock.middleware()(req, res, function () {
-		httpHttps(req, res);
-	});
-}).listen(443);
-
-http.createServer(async function (req, res) {
-    console.log(`Received PLAIN request ${req.headers.host}${req.url}`);
-	greenlock.middleware()(req, res, function () {
-		httpHttps(req, res);
-	});
-}).listen(80);
-
-// httpHttps application
-function httpHttps(req, res) {
-    const skip = ['localhost', '127.0.0.1'];
-    const host = req.headers.host;
-
-    if (!host) {
-        const errMessage = `HOST IS NOT VALID: '${host}'`;
-        console.log(errMessage);
-        res.statusCode = 500;
-        res.write(errMessage);
-        res.end();
-    } else if (!isNaN(host[0])) {
-        console.log(`IP: ${req.headers.host}${req.url}`);
-        proxy.web(req, res, { target: destination });
-    } else if (skip.includes(host)) {
-        console.log(`SKIPPED: ${req.headers.host}${req.url}`);
-        proxy.web(req, res, { target: destination });
-    } else if (registered.includes(host)) {
-        console.log(`REGISTERED: ${req.headers.host}${req.url}`);
-        if (force && !req.socket.encrypted) {
-            res.writeHead(302, { 'Location': `https://${req.headers.host}${req.url}` });
-            res.end();
-        } else if (root && !req.socket.encrypted && req.url == '/') {
-            res.writeHead(302, { 'Location': `https://${req.headers.host}` });
-            res.end();
-        } else {
-            proxy.web(req, res, { target: destination });
-        }
-    } else if (req.headers.token) {
-        if (req.headers.token == token) {
-            res.write(token);
-            res.statusCode = 200;
-            res.end();
-        } else {
-            res.statusCode = 500;
-            res.end();
-        }
-    } else {
-        console.log(`UN-REGISTERED: ${req.headers.host}${req.url}`);
-        console.log(`CHECKING TOKEN ON LOOPBACK CALL`);
-
-        registerSSL(host,
+          registerSSL(
+            domain,
             function () {
-                if (force && !req.socket.encrypted) {
-                    res.writeHead(302, { 'Location': `https://${req.headers.host}${req.url}` });
-                    res.end();
-                } else if (root && !req.socket.encrypted && req.url == '/') {
-                    res.writeHead(302, { 'Location': `https://${req.headers.host}` });
-                    res.end();
-                } else {
-                    proxy.web(req, res, { target: destination });
-                }
-            }, function (err) {
-                console.log(err);
-                res.statusCode = 500;
-                res.end();
+              callBack(null, global.certdb[domain]);
+            },
+            function (err) {
+              debugger;
+              die(err);
             }
-        );
+          );
+        }
+      },
+    },
+    async function (req, res) {
+      log(`Received SECURE request ${req.headers.host}${req.url}`);
+      transferRequestToAnotherServer(req, res, destinationServer);
     }
+  )
+  .listen(443);
+
+http
+  .createServer(async function (req, res) {
+    log(`Received PLAIN request ${req.headers.host}${req.url}`);
+    transferRequestToAnotherServer(req, res, destinationServer);
+  })
+  .listen(80);
+
+function transferRequestToAnotherServer(req, res, anotherHttpServer) {
+  const host = req.headers.host;
+
+  // Invalid hosts
+  if (!host) {
+    log(`Host is not valid: '${host}'`);
+    res.statusCode = 500;
+    res.write(errMessage);
+    res.end();
+    return;
+  }
+
+  // Request without domain names: ip address
+  const doesRequestedHostIsAnIP = !isNaN(host[0]);
+
+  if (doesRequestedHostIsAnIP) {
+    log(`IP address aren't valid ones`);
+    res.statusCode = 500;
+    res.write(errMessage);
+    res.end();
+    return;
+  }
+
+  // Registered hosts
+  if (registeredCertificates.includes(host)) {
+    log(`Host registered: ${req.headers.host}${req.url}`);
+    proxy.web(req, res, { target: anotherHttpServer });
+    return;
+  }
+
+  // Loopback check response - used to check domain before asking acme to generate ssl
+  if (req.headers?.sslizetoken === sslizetoken) {
+    res.write(sslizetoken);
+    res.statusCode = 200;
+    res.end();
+  } else {
+    res.statusCode = 500;
+    res.end();
+  }
 }

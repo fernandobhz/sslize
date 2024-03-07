@@ -1,0 +1,13 @@
+{
+    "printWidth": 160,
+    "arrowParens": "avoid",
+    "endOfLine": "lf",
+    "bracketSameLine": true,
+    "bracketSpacing": true,
+    "cursorOffset": -1,
+    "embeddedLanguageFormatting": "auto",
+    "experimentalTernaries": true,
+    "singleQuote": false,
+    "tabWidth": 2,
+    "useTabs": false
+}
