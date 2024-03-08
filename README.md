@@ -35,6 +35,8 @@ https://git.rootprojects.org/root/greenlock-express.js/src/branch/master/example
 
 https://github.com/fernandobhz/sslize/blob/00580e97ac2cd6402ba912d915ca975fbc33eb73/sslize.js
 
+https://git.rootprojects.org/root/greenlock-express.js/src/branch/master/examples/http-proxy/server.js
+
 # Credits
   
 [https://www.linkedin.com/in/fernandoreisguimaraes/](https://www.linkedin.com/in/fernandoreisguimaraes/)  

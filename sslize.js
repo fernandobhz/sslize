@@ -31,8 +31,8 @@ const tls = require("tls");
 const fs = require("fs");
 
 const GreenLock = require("greenlock");
-const GreenLockStoreFs = require("greenlock-store-fs");
-const GreenLockManager = require("@greenlock/manager");
+const GreenLockExpress = require("greenlock-express");
+const http01 = require("acme-http-01-standalone").create({});
 
 // INPUT ARGS
 const [email, destinationServer, isProductionServerString] = process.argv.slice(2);
@@ -90,7 +90,7 @@ PARSED:
 `);
 log("-------------------------------------------");
 
-const greenlock = GreenLock.create({
+const greenlockexpress = GreenLockExpress.init({
   packageRoot: __dirname,
   manager: {
     module: "@greenlock/manager",
@@ -102,8 +102,13 @@ const greenlock = GreenLock.create({
   store: {
     module: "greenlock-store-fs",
     basePath: greenlockConfigDir,
-  }
+  },
+  challenges: {
+    "http-01": http01,
+  },
 });
+
+greenlockexpress.ready(processRequest);
 
 const registeredCertificates = loadRegistered();
 
@@ -146,6 +151,45 @@ async function loadCertificates() {
   }
 }
 
+function addSite(host, successCallback, errorCallback) {
+
+  const greenlock = GreenLock.create({
+    packageRoot: __dirname,
+    manager: {
+      module: "@greenlock/manager",
+    },
+    configDir: greenlockConfigDir,
+    staging: isStagingServer,
+    maintainerEmail: email,
+    packageAgent: `${projectPackageJson.name}/${projectPackageJson.version}`,
+    store: {
+      module: "greenlock-store-fs",
+      basePath: greenlockConfigDir,
+    },
+    challenges: {
+      "http-01": http01,
+    },
+  });
+
+
+  greenlock.add({ subject: host, altnames: [host] }).then(function (certs) {
+    log("Successfully registeredCertificates ssl cert");
+    registeredCertificates[host] = certs;
+    saveRegistered();
+
+    if (!global.certdb) {
+      global.certdb = {};
+    }
+
+    global.certdb[host] = tls.createSecureContext({
+      key: certs.privkey,
+      cert: certs.cert + certs.chain,
+    });
+
+    successCallback();
+  }, errorCallback);
+}
+
 // SSL Registration
 async function registerSSL(host, successCallback, errorCallback) {
   request({ url: `http://${host}`, headers: { sslizetoken: sslizetoken } }, function (err, response, body) {
@@ -156,24 +200,7 @@ async function registerSSL(host, successCallback, errorCallback) {
     } else if (body === sslizetoken) {
       log(`Checking token: Success`);
       log(`Asking lets encrypt: '${host}'`);
-
-      greenlock.add({ subject: host, altnames: [host] }).then(function (certs) {
-        debugger;
-        log("Successfully registeredCertificates ssl cert");
-        registeredCertificates[host] = certs;
-        saveRegistered();
-
-        if (!global.certdb) {
-          global.certdb = {};
-        }
-
-        global.certdb[host] = tls.createSecureContext({
-          key: certs.privkey,
-          cert: certs.cert + certs.chain,
-        });
-
-        successCallback();
-      }, errorCallback);
+      addSite(host,successCallback,errorCallback);
     }
   });
 }
@@ -203,7 +230,7 @@ https
     },
     async function (req, res) {
       log(`Received SECURE request ${req.headers.host}${req.url}`);
-      transferRequestToAnotherServer(req, res, destinationServer);
+      processRequest(req, res, destinationServer);
     }
   )
   .listen(443);
@@ -211,47 +238,50 @@ https
 http
   .createServer(async function (req, res) {
     log(`Received PLAIN request ${req.headers.host}${req.url}`);
-    transferRequestToAnotherServer(req, res, destinationServer);
+    processRequest(req, res, destinationServer);
   })
   .listen(80);
 
-function transferRequestToAnotherServer(req, res, anotherHttpServer) {
-  const host = req.headers.host;
+function processRequest(glx) {
+  glx.serveApp(function (req, res) {
+    const host = req.headers.host;
 
-  // Invalid hosts
-  if (!host) {
-    log(`Host is not valid: '${host}'`);
-    res.statusCode = 500;
-    res.write(errMessage);
-    res.end();
-    return;
-  }
+    // Invalid hosts
+    if (!host) {
+      log(`Host is not valid: '${host}'`);
+      res.statusCode = 500;
+      res.write(errMessage);
+      res.end();
+      return;
+    }
 
-  // Request without domain names: ip address
-  const doesRequestedHostIsAnIP = !isNaN(host[0]);
+    // Request without domain names: ip address
+    const doesRequestedHostIsAnIP = !isNaN(host[0]);
 
-  if (doesRequestedHostIsAnIP) {
-    log(`IP address aren't valid ones`);
-    res.statusCode = 500;
-    res.write(errMessage);
-    res.end();
-    return;
-  }
+    if (doesRequestedHostIsAnIP) {
+      log(`IP address aren't valid ones`);
+      res.statusCode = 500;
+      res.write(errMessage);
+      res.end();
+      return;
+    }
 
-  // Registered hosts
-  if (registeredCertificates[host]) {
-    log(`Host registered: ${req.headers.host}${req.url}`);
-    proxy.web(req, res, { target: anotherHttpServer });
-    return;
-  }
+    // Registered hosts
+    function processRegisteredHostsRequests() {
+      if (registeredCertificates[host]) {
+        log(`Host registered: ${req.headers.host}${req.url}`);
+        proxy.web(req, res, { target: destinationServer });
+        return;
+      }
+    }
+      
+    // Loopback check response - used to check domain before asking acme to generate ssl
+    if (req.headers?.sslizetoken === sslizetoken) {
+      res.write(sslizetoken);
+      res.statusCode = 200;
+      res.end();
+    }
 
-  // Loopback check response - used to check domain before asking acme to generate ssl
-  if (req.headers?.sslizetoken === sslizetoken) {
-    res.write(sslizetoken);
-    res.statusCode = 200;
-    res.end();
-  } else {
-    res.statusCode = 500;
-    res.end();
-  }
+    addSite(host, processRegisteredHostsRequests, die);
+  });
 }
