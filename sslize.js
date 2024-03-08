@@ -44,16 +44,11 @@ const proxy = httpProxy.createProxyServer({ xfwd: true });
 const sslizetoken = Math.random().toString().substring(2);
 
 const sslizeJsonDatabasePath = path.join(home, ".sslize.json");
-const doesSslizeJsonDatabasePath = !!fs.existsSync(sslizeJsonDatabasePath);
+const doesSslizeJsonDatabasePathExists = !!fs.existsSync(sslizeJsonDatabasePath);
 
 const greenlockConfigDir = path.join(home, ".greenlock");
-const doesGreenlockConfigDir = !!fs.existsSync(greenlockConfigDir);
+const doesGreenlockConfigDirExists = !!fs.existsSync(greenlockConfigDir);
 
-const doesAnyConfigFileExists = doesSslizeJsonDatabasePath || doesGreenlockConfigDir;
-
-// if (isStagingServer && doesAnyConfigFileExists) {
-//   die(`Can't have .sslize.json in home directory and/or letsencrypt folder when using staging server`);
-// }
 
 log("ARGUMENTS RECEIVED");
 log("-------------------------------------------");
@@ -66,7 +61,7 @@ PARSED:
   isProductionServer: ${isProductionServer}
   isStagingServer: ${isStagingServer}
 
-  sslize.json...............exists? ${doesSslizeJsonDatabasePath ? "YES" : "NO"}
+  sslize.json...............exists? ${doesSslizeJsonDatabasePathExists ? "YES" : "NO"}
   greenlock config file.....exists? ${greenlockConfigDir ? "YES" : "NO"}
   
 `);
@@ -95,7 +90,7 @@ greenlockexpress.ready(processRequest);
 const registeredCertificates = loadRegistered();
 
 function loadRegistered() {
-  if (!doesSslizeJsonDatabasePath) {    
+  if (!doesSslizeJsonDatabasePathExists) {    
     fs.writeFileSync(sslizeJsonDatabasePath, JSON.stringify({}));
   }
 
@@ -108,33 +103,7 @@ function saveRegistered() {
   fs.writeFileSync(sslizeJsonDatabasePath, JSON.stringify(registeredCertificates));
 }
 
-// Certdb
-async function loadCertificates() {
-  for (const domain of registeredCertificates) {
-    try {
-      const certs = await greenlock.get({ servername: domain });
-      if (!global.certdb) global.certdb = {};
-
-      const expires = certs._expiresAt;
-
-      if (expires < new Date()) {
-        registeredCertificates.splice(registeredCertificates.indexOf(domain), 1);
-        return;
-      }
-
-      global.certdb[domain] = tls.createSecureContext({
-        key: certs.privkey,
-        cert: certs.cert + certs.chain,
-      });
-    } catch (err) {
-      log(err);
-      return;
-    }
-  }
-}
-
 function addSite(host, successCallback, errorCallback) {
-
   const greenlock = GreenLock.create({
     packageRoot: __dirname,
     manager: {
@@ -155,7 +124,6 @@ function addSite(host, successCallback, errorCallback) {
 
 
   greenlock.add({ subject: host, altnames: [host] }).then(function (certs) {
-    debugger;
     log("Successfully registeredCertificates ssl cert");
     registeredCertificates[host] = certs;
     saveRegistered();
@@ -204,7 +172,6 @@ https
               callBack(null, global.certdb[domain]);
             },
             function (err) {
-              debugger;
               die(err);
             }
           );
