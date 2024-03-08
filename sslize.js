@@ -43,25 +43,8 @@ const isStagingServer = !isProductionServer;
 const proxy = httpProxy.createProxyServer({ xfwd: true });
 const sslizetoken = Math.random().toString().substring(2);
 
-// REGISTERED ---------------------------------------- REMOVE BEFORE PUBLISHING
-
-try {
-  fs.rmSync(sslizeJsonDatabasePath);
-} catch (error) {}
-
-try {
-  fs.rmSync(letsEncryptDataPath, { recursive: true, force: true });
-} catch (error) {}
-
-try {
-  fs.rmSync(greenlockConfigDir, { recursive: true, force: true });
-} catch (error) {}
-
 const sslizeJsonDatabasePath = path.join(home, ".sslize.json");
 const doesSslizeJsonDatabasePath = !!fs.existsSync(sslizeJsonDatabasePath);
-
-const letsEncryptDataPath = path.join(home, "letsencrypt");
-const doesLetsEncryptDataPathExists = !!fs.existsSync(letsEncryptDataPath);
 
 const greenlockConfigDir = path.join(home, ".greenlock");
 const doesGreenlockConfigDir = !!fs.existsSync(greenlockConfigDir);
@@ -85,7 +68,6 @@ PARSED:
 
   sslize.json...............exists? ${doesSslizeJsonDatabasePath ? "YES" : "NO"}
   greenlock config file.....exists? ${greenlockConfigDir ? "YES" : "NO"}
-	letsencrypt data path.....exists? ${doesLetsEncryptDataPathExists ? "YES" : "NO"}
   
 `);
 log("-------------------------------------------");
@@ -113,7 +95,7 @@ greenlockexpress.ready(processRequest);
 const registeredCertificates = loadRegistered();
 
 function loadRegistered() {
-  if (!doesLetsEncryptDataPathExists) {
+  if (!doesSslizeJsonDatabasePath) {    
     fs.writeFileSync(sslizeJsonDatabasePath, JSON.stringify({}));
   }
 
@@ -173,6 +155,7 @@ function addSite(host, successCallback, errorCallback) {
 
 
   greenlock.add({ subject: host, altnames: [host] }).then(function (certs) {
+    debugger;
     log("Successfully registeredCertificates ssl cert");
     registeredCertificates[host] = certs;
     saveRegistered();
@@ -266,7 +249,6 @@ function processRequest(glx) {
       return;
     }
 
-    // Registered hosts
     function processRegisteredHostsRequests() {
       if (registeredCertificates[host]) {
         log(`Host registered: ${req.headers.host}${req.url}`);
@@ -280,8 +262,20 @@ function processRequest(glx) {
       res.write(sslizetoken);
       res.statusCode = 200;
       res.end();
+      return;
     }
 
-    addSite(host, processRegisteredHostsRequests, die);
+    // Registered hosts
+    if (registeredCertificates[host]) {
+      log(`Host already registered: ${req.headers.host}${req.url}`);
+      proxy.web(req, res, { target: destinationServer });
+      return;
+    }
+
+    addSite(host, () => {
+      log(`Just registered host: ${req.headers.host}${req.url}`);
+      proxy.web(req, res, { target: destinationServer });
+      return;
+    }, die);
   });
 }
