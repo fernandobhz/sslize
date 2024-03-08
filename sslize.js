@@ -49,7 +49,7 @@ const doesSslizeJsonDatabasePath = !!fs.existsSync(sslizeJsonDatabasePath);
 const greenlockConfigDir = path.join(home, ".greenlock");
 const doesGreenlockConfigDir = !!fs.existsSync(greenlockConfigDir);
 
-const doesAnyConfigFileExists = doesSslizeJsonDatabasePath || doesLetsEncryptDataPathExists || doesGreenlockConfigDir;
+const doesAnyConfigFileExists = doesSslizeJsonDatabasePath || doesGreenlockConfigDir;
 
 // if (isStagingServer && doesAnyConfigFileExists) {
 //   die(`Can't have .sslize.json in home directory and/or letsencrypt folder when using staging server`);
