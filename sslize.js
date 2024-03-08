@@ -93,15 +93,17 @@ log("-------------------------------------------");
 const greenlock = GreenLock.create({
   packageRoot: __dirname,
   manager: {
-    module: "@greenlock/manager"
+    module: "@greenlock/manager",
   },
   configDir: greenlockConfigDir,
   staging: isStagingServer,
   maintainerEmail: email,
   packageAgent: `${projectPackageJson.name}/${projectPackageJson.version}`,
-  store: GreenLockStoreFs,
+  store: {
+    module: "greenlock-store-fs",
+    basePath: greenlockConfigDir,
+  }
 });
-
 
 const registeredCertificates = loadRegistered();
 
@@ -155,8 +157,8 @@ async function registerSSL(host, successCallback, errorCallback) {
       log(`Checking token: Success`);
       log(`Asking lets encrypt: '${host}'`);
 
-      debugger;
-      greenlock.add({ subject: host }).then(function (certs) {
+      greenlock.add({ subject: host, altnames: [host] }).then(function (certs) {
+        debugger;
         log("Successfully registeredCertificates ssl cert");
         registeredCertificates[host] = certs;
         saveRegistered();
