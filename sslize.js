@@ -90,9 +90,6 @@ PARSED:
 `);
 log("-------------------------------------------");
 
-
-debugger;
-
 const greenlock = GreenLock.create({
   packageRoot: __dirname,
   manager: {
@@ -105,34 +102,7 @@ const greenlock = GreenLock.create({
   store: GreenLockStoreFs,
 });
 
-debugger;
 
-// const greenlock = GreenLock.create({
-
-//   packageRoot: __dirname,
-//   configDir: greenlockConfigDir,
-//   packageAgent: `${projectPackageJson.name}/${projectPackageJson.version}`,
-//   maintainerEmail: email,
-//   staging: true,
-//   notify: function(event, details) {
-//       if ('error' === event) {
-//           // `details` is an error object in this case
-//           console.error(details);
-//       }
-//   }
-// });
-
-// greenlock.manager
-//   .defaults({
-//       agreeToTerms: true,
-//       subscriberEmail: email,
-//       id: 13413412
-//   })
-//   .then(function(fullConfig) {
-
-//   });
-
-debugger;
 const registeredCertificates = loadRegistered();
 
 function loadRegistered() {
