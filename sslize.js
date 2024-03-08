@@ -29,8 +29,10 @@ const path = require("path");
 const http = require("http");
 const tls = require("tls");
 const fs = require("fs");
-const GreenLock = require("@root/greenlock");
+
+const GreenLock = require("greenlock");
 const GreenLockStoreFs = require("greenlock-store-fs");
+const GreenLockManager = require("@greenlock/manager");
 
 // INPUT ARGS
 const [email, destinationServer, isProductionServerString] = process.argv.slice(2);
@@ -42,11 +44,18 @@ const proxy = httpProxy.createProxyServer({ xfwd: true });
 const sslizetoken = Math.random().toString().substring(2);
 
 // REGISTERED ---------------------------------------- REMOVE BEFORE PUBLISHING
-if (doesAnyConfigFileExists) {
+
+try {
   fs.rmSync(sslizeJsonDatabasePath);
+} catch (error) {}
+
+try {
   fs.rmSync(letsEncryptDataPath, { recursive: true, force: true });
+} catch (error) {}
+
+try {
   fs.rmSync(greenlockConfigDir, { recursive: true, force: true });
-}
+} catch (error) {}
 
 const sslizeJsonDatabasePath = path.join(home, ".sslize.json");
 const doesSslizeJsonDatabasePath = !!fs.existsSync(sslizeJsonDatabasePath);
@@ -59,9 +68,9 @@ const doesGreenlockConfigDir = !!fs.existsSync(greenlockConfigDir);
 
 const doesAnyConfigFileExists = doesSslizeJsonDatabasePath || doesLetsEncryptDataPathExists || doesGreenlockConfigDir;
 
-if (isStagingServer && doesAnyConfigFileExists) {
-  die(`Can't have .sslize.json in home directory and/or letsencrypt folder when using staging server`);
-}
+// if (isStagingServer && doesAnyConfigFileExists) {
+//   die(`Can't have .sslize.json in home directory and/or letsencrypt folder when using staging server`);
+// }
 
 log("ARGUMENTS RECEIVED");
 log("-------------------------------------------");
@@ -81,8 +90,14 @@ PARSED:
 `);
 log("-------------------------------------------");
 
+
 debugger;
+
 const greenlock = GreenLock.create({
+  packageRoot: __dirname,
+  manager: {
+    module: "@greenlock/manager"
+  },
   configDir: greenlockConfigDir,
   staging: isStagingServer,
   maintainerEmail: email,
@@ -90,6 +105,34 @@ const greenlock = GreenLock.create({
   store: GreenLockStoreFs,
 });
 
+debugger;
+
+// const greenlock = GreenLock.create({
+
+//   packageRoot: __dirname,
+//   configDir: greenlockConfigDir,
+//   packageAgent: `${projectPackageJson.name}/${projectPackageJson.version}`,
+//   maintainerEmail: email,
+//   staging: true,
+//   notify: function(event, details) {
+//       if ('error' === event) {
+//           // `details` is an error object in this case
+//           console.error(details);
+//       }
+//   }
+// });
+
+// greenlock.manager
+//   .defaults({
+//       agreeToTerms: true,
+//       subscriberEmail: email,
+//       id: 13413412
+//   })
+//   .then(function(fullConfig) {
+
+//   });
+
+debugger;
 const registeredCertificates = loadRegistered();
 
 function loadRegistered() {
@@ -224,7 +267,7 @@ function transferRequestToAnotherServer(req, res, anotherHttpServer) {
   }
 
   // Registered hosts
-  if (registeredCertificates.includes(host)) {
+  if (registeredCertificates[host]) {
     log(`Host registered: ${req.headers.host}${req.url}`);
     proxy.web(req, res, { target: anotherHttpServer });
     return;
