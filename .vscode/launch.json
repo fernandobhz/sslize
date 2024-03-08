@@ -10,6 +10,7 @@
             "name": "Launch Program",
             "skipFiles": ["<node_internals>/**", "${workspaceFolder}/node_modules/**/*.js"],
             "program": "${workspaceFolder}\\sslize.js",
+            "args": ["fernando@fernandofrg.com.br", "http://bmi.agoge.com.br:8080", "false"]
         }
     ]
 }
