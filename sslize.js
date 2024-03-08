@@ -5,6 +5,10 @@ function log(...args) {
   console.log(new Date().toISOString(), ...args);
 }
 
+function warn(...args) {
+  console.warn(new Date().toISOString(), ...args);
+}
+
 function die(...args) {
   log(...args);
   process.exit(1);
@@ -49,7 +53,6 @@ const doesSslizeJsonDatabasePathExists = !!fs.existsSync(sslizeJsonDatabasePath)
 const greenlockConfigDir = path.join(home, ".greenlock");
 const doesGreenlockConfigDirExists = !!fs.existsSync(greenlockConfigDir);
 
-
 log("ARGUMENTS RECEIVED");
 log("-------------------------------------------");
 log(process.argv);
@@ -83,6 +86,25 @@ const greenlockexpress = GreenLockExpress.init({
   challenges: {
     "http-01": http01,
   },
+  notify: (...args) => {
+    const errorType = args.at(0);
+
+    if (errorType !== "servername_unknown") {
+      log(...args);
+      return;
+    }
+
+    const host = args.at(1).servername;
+
+    addSite(
+      host,
+      () => {
+        warn(`Just registered host: ${host}, unfortunately the client will receive an error and will need to make another request`);
+        return;
+      },
+      die
+    );
+  },
 });
 
 greenlockexpress.ready(processRequest);
@@ -90,7 +112,7 @@ greenlockexpress.ready(processRequest);
 const registeredCertificates = loadRegistered();
 
 function loadRegistered() {
-  if (!doesSslizeJsonDatabasePathExists) {    
+  if (!doesSslizeJsonDatabasePathExists) {
     fs.writeFileSync(sslizeJsonDatabasePath, JSON.stringify({}));
   }
 
@@ -122,7 +144,6 @@ function addSite(host, successCallback, errorCallback) {
     },
   });
 
-
   greenlock.add({ subject: host, altnames: [host] }).then(function (certs) {
     log("Successfully registeredCertificates ssl cert");
     registeredCertificates[host] = certs;
@@ -151,7 +172,7 @@ async function registerSSL(host, successCallback, errorCallback) {
     } else if (body === sslizetoken) {
       log(`Checking token: Success`);
       log(`Asking lets encrypt: '${host}'`);
-      addSite(host,successCallback,errorCallback);
+      addSite(host, successCallback, errorCallback);
     }
   });
 }
@@ -223,7 +244,7 @@ function processRequest(glx) {
         return;
       }
     }
-      
+
     // Loopback check response - used to check domain before asking acme to generate ssl
     if (req.headers?.sslizetoken === sslizetoken) {
       res.write(sslizetoken);
@@ -239,10 +260,14 @@ function processRequest(glx) {
       return;
     }
 
-    addSite(host, () => {
-      log(`Just registered host: ${req.headers.host}${req.url}`);
-      proxy.web(req, res, { target: destinationServer });
-      return;
-    }, die);
+    addSite(
+      host,
+      () => {
+        log(`Just registered host: ${req.headers.host}${req.url}`);
+        proxy.web(req, res, { target: destinationServer });
+        return;
+      },
+      die
+    );
   });
 }
