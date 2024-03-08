@@ -29,7 +29,7 @@ const path = require("path");
 const http = require("http");
 const tls = require("tls");
 const fs = require("fs");
-const GreenLock = require("greenlock");
+const GreenLock = require("@root/greenlock");
 const GreenLockStoreFs = require("greenlock-store-fs");
 
 // INPUT ARGS
@@ -41,17 +41,23 @@ const isStagingServer = !isProductionServer;
 const proxy = httpProxy.createProxyServer({ xfwd: true });
 const sslizetoken = Math.random().toString().substring(2);
 
-// REGISTERED
+// REGISTERED ---------------------------------------- REMOVE BEFORE PUBLISHING
+if (doesAnyConfigFileExists) {
+  fs.rmSync(sslizeJsonDatabasePath);
+  fs.rmSync(letsEncryptDataPath, { recursive: true, force: true });
+  fs.rmSync(greenlockConfigDir, { recursive: true, force: true });
+}
+
 const sslizeJsonDatabasePath = path.join(home, ".sslize.json");
 const doesSslizeJsonDatabasePath = !!fs.existsSync(sslizeJsonDatabasePath);
 
 const letsEncryptDataPath = path.join(home, "letsencrypt");
 const doesLetsEncryptDataPathExists = !!fs.existsSync(letsEncryptDataPath);
 
-const greenlockConfigFile = path.join(home, ".greenlock-config.json");
-const doesGreenlockConfigFile = !!fs.existsSync(greenlockConfigFile);
+const greenlockConfigDir = path.join(home, ".greenlock");
+const doesGreenlockConfigDir = !!fs.existsSync(greenlockConfigDir);
 
-const doesAnyConfigFileExists = doesSslizeJsonDatabasePath || doesLetsEncryptDataPathExists || doesGreenlockConfigFile;
+const doesAnyConfigFileExists = doesSslizeJsonDatabasePath || doesLetsEncryptDataPathExists || doesGreenlockConfigDir;
 
 if (isStagingServer && doesAnyConfigFileExists) {
   die(`Can't have .sslize.json in home directory and/or letsencrypt folder when using staging server`);
@@ -69,7 +75,7 @@ PARSED:
   isStagingServer: ${isStagingServer}
 
   sslize.json...............exists? ${doesSslizeJsonDatabasePath ? "YES" : "NO"}
-  greenlock config file.....exists? ${greenlockConfigFile ? "YES" : "NO"}
+  greenlock config file.....exists? ${greenlockConfigDir ? "YES" : "NO"}
 	letsencrypt data path.....exists? ${doesLetsEncryptDataPathExists ? "YES" : "NO"}
   
 `);
@@ -77,7 +83,7 @@ log("-------------------------------------------");
 
 debugger;
 const greenlock = GreenLock.create({
-  configDir: greenlockConfigFile,
+  configDir: greenlockConfigDir,
   staging: isStagingServer,
   maintainerEmail: email,
   packageAgent: `${projectPackageJson.name}/${projectPackageJson.version}`,
