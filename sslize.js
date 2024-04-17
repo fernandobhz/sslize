@@ -194,7 +194,7 @@ function processRequest(glx) {
     // Registered hosts
     if (registeredCertificates[host]) {
       log(`Host already registered: ${req.headers.host}${req.url}`);
-      proxy.web(req, res, { target: destinationServer });
+      proxy.web(req, res, { target: destinationServer, preserveHeaderKeyCase: true, followRedirects: true }, log);
       return;
     }
 
@@ -202,7 +202,7 @@ function processRequest(glx) {
       host,
       () => {
         log(`Just registered host: ${req.headers.host}${req.url}`);
-        proxy.web(req, res, { target: destinationServer, preserveHeaderKeyCase: true, followRedirects: true });
+        proxy.web(req, res, { target: destinationServer, preserveHeaderKeyCase: true, followRedirects: true }, log);
         return;
       },
       die
