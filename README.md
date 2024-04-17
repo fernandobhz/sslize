@@ -9,10 +9,22 @@ This is very useful to put that app in front an web server that only has support
 	npm install -g sslize
 
 # Usage  
+
+	First register the domain[s] to use:
+	```
+	npx greenlock add --subject domain.com  --altnames domain.com
+	```
+
+	then start the sslize
+	```
   	sslize email protocol://host:port productionServer(true|false)
-  
+  	```
+
 # Example
+	```
+	npx greenlock add --subject domain.com  --altnames domain.com
 	sslize john@example.com http://destination-server.com:8080 false
+	```
 
 This command will start a webserver on port 80 and 443 to receive the incoming connection then register the ssl if necessary then connect it to the destination, in our case http://destination-server.com:8080, but it could be another webserver as well.
 

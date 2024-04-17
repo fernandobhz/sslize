@@ -26,7 +26,6 @@ if (process.argv.length < 5) {
 const home = require("home")();
 const httpProxy = require("http-proxy");
 const projectPackageJson = require("./package.json");
-const request = require("request");
 const path = require("path");
 const tls = require("tls");
 const fs = require("fs");
@@ -203,7 +202,7 @@ function processRequest(glx) {
       host,
       () => {
         log(`Just registered host: ${req.headers.host}${req.url}`);
-        proxy.web(req, res, { target: destinationServer });
+        proxy.web(req, res, { target: destinationServer, preserveHeaderKeyCase: true, followRedirects: true });
         return;
       },
       die
