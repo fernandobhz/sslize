@@ -1,20 +1,8 @@
 #! /usr/bin/env node
 // Strict-Transport-Security: max-age=15768000 ; includeSubDomains
 
-function log(...args) {
-  console.log(new Date().toISOString(), ...args);
-}
+const { log, warn, die } = require('./logger.js');
 
-function warn(...args) {
-  console.warn(new Date().toISOString(), ...args);
-}
-
-function die(...args) {
-  log(...args);
-  process.exit(1);
-}
-
-// Initial Checking
 if (process.argv.length < 5) {
   log("Usage: sslize email protocol://host:port productionServer(true|false)");
   log(" eg: sslize john@example.com http://destinationServer-web-server.com:8080 false");
@@ -22,29 +10,23 @@ if (process.argv.length < 5) {
   process.exit(1);
 }
 
-// REQUIRES
-const home = require("home")();
-const httpProxy = require("http-proxy");
-const projectPackageJson = require("./package.json");
+const os = require('os');
+const home = os.homedir();
 const path = require("path");
-const tls = require("tls");
 const fs = require("fs");
 
-const GreenLock = require("greenlock");
+const httpProxy = require("http-proxy");
 const GreenLockExpress = require("greenlock-express");
-const http01 = require("acme-http-01-standalone").create({});
 
-// INPUT ARGS
+const greenlockConfig = require('./green-lock-config.js');
+const { loadRegistered, addSite }  = require('./helpers.js');
+
 const [email, destinationServer, isProductionServerString] = process.argv.slice(2);
 const isProductionServer = isProductionServerString === "true";
 const isStagingServer = !isProductionServer;
 
-// OBJECTS, REQUIRED
 const proxy = httpProxy.createProxyServer({ xfwd: true });
 const sslizetoken = Math.random().toString().substring(2);
-
-const sslizeJsonDatabasePath = path.join(home, ".sslize.json");
-const doesSslizeJsonDatabasePathExists = !!fs.existsSync(sslizeJsonDatabasePath);
 
 const greenlockConfigDir = path.join(home, ".greenlock");
 const doesGreenlockConfigDirExists = !!fs.existsSync(greenlockConfigDir);
@@ -60,102 +42,15 @@ PARSED:
   isProductionServer: ${isProductionServer}
   isStagingServer: ${isStagingServer}
 
-  sslize.json...............exists? ${doesSslizeJsonDatabasePathExists ? "YES" : "NO"}
   greenlock config file.....exists? ${doesGreenlockConfigDirExists ? "YES" : "NO"}
   
 `);
 log("-------------------------------------------");
 
 
-const certdb = {};
-
-const greenlock = GreenLock.create({
-  packageRoot: __dirname,
-  manager: {
-    module: "@greenlock/manager",
-  },
-  configDir: greenlockConfigDir,
-  staging: isStagingServer,
-  maintainerEmail: email,
-  packageAgent: `${projectPackageJson.name}/${projectPackageJson.version}`,
-  store: {
-    module: "greenlock-store-fs",
-    basePath: greenlockConfigDir,
-  },
-  challenges: {
-    "http-01": http01,
-  },
-});
-
-const greenlockexpress = GreenLockExpress.init({
-  packageRoot: __dirname,
-  manager: {
-    module: "@greenlock/manager",
-  },
-  configDir: greenlockConfigDir,
-  staging: isStagingServer,
-  maintainerEmail: email,
-  packageAgent: `${projectPackageJson.name}/${projectPackageJson.version}`,
-  store: {
-    module: "greenlock-store-fs",
-    basePath: greenlockConfigDir,
-  },
-  challenges: {
-    "http-01": http01,
-  },
-  notify: (...args) => {
-    const errorType = args.at(0);
-
-    if (errorType !== "servername_unknown") {
-      log(...args);
-      return;
-    }
-
-    const host = args.at(1).servername;
-
-    addSite(
-      host,
-      () => {
-        warn(`Just registered host: ${host}, unfortunately the client will receive an error and will need to make another request`);
-        return;
-      },
-      die
-    );
-  },
-});
-
-greenlockexpress.ready(processRequest);
-
 const registeredCertificates = loadRegistered();
-
-function loadRegistered() {
-  if (!doesSslizeJsonDatabasePathExists) {
-    fs.writeFileSync(sslizeJsonDatabasePath, JSON.stringify({}));
-  }
-
-  const sslizeDatabaseContents = fs.readFileSync(sslizeJsonDatabasePath, "utf8");
-  const sslizeDatabaseData = JSON.parse(sslizeDatabaseContents);
-  return sslizeDatabaseData;
-}
-
-function saveRegistered() {
-  fs.writeFileSync(sslizeJsonDatabasePath, JSON.stringify(registeredCertificates));
-}
-
-function addSite(host, successCallback, errorCallback) {
-  greenlock.add({ subject: host, altnames: [host] }).then(function (certs) {
-    log("Successfully registeredCertificates ssl cert");
-    registeredCertificates[host] = certs;
-    saveRegistered();
-
-    certdb[host] = tls.createSecureContext({
-      key: certs.privkey,
-      cert: certs.cert + certs.chain,
-    });
-
-    successCallback();
-  }, errorCallback);
-}
+const greenlockexpress = GreenLockExpress.init(greenlockConfig);
+greenlockexpress.ready(processRequest);
 
 function processRequest(glx) {
   glx.serveApp(function (req, res) {
@@ -183,14 +78,6 @@ function processRequest(glx) {
       return;
     }
 
-    // Loopback check response - used to check domain before asking acme to generate ssl
-    if (req.headers?.sslizetoken === sslizetoken) {
-      res.write(sslizetoken);
-      res.statusCode = 200;
-      res.end();
-      return;
-    }
-
     // Registered hosts
     if (registeredCertificates[host]) {
       log(`Host already registered: ${req.headers.host}${req.url}`);
@@ -198,15 +85,7 @@ function processRequest(glx) {
       return;
     }
 
-    addSite(
-      host,
-      () => {
-        log(`Just registered host: ${req.headers.host}${req.url}`);
-        proxy.web(req, res, { target: destinationServer, preserveHeaderKeyCase: true, followRedirects: true }, log);
-        return;
-      },
-      die
-    );
+    addSite(host, die);
   });
 }
 
