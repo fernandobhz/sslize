@@ -49,12 +49,13 @@ const registeredCertificates = loadRegistered();
 const greenlockexpress = GreenLockExpress.init({
   ...greenlockConfig,
   notify: (errorType, errorArguments) => {
-    if (errorType !== 'servername_unknown') {
-      return warn(errorType, errorArguments);
-    }
+    warn(errorType, errorArguments);
+    // if (errorType !== 'servername_unknown') {
+    //   return warn(errorType, errorArguments);
+    // }
 
-    const { servername } = errorArguments;
-    addSite(servername, die);
+    // const { servername } = errorArguments;
+    // addSite(servername, die);
   },
 });
 
@@ -75,7 +76,7 @@ function processRequest(glx) {
     }
 
     // Request without domain names: ip address
-    const doesRequestedHostIsAnIP = !isNaN(host[0]);
+    const doesRequestedHostIsAnIP =  !isNaN(host[0].charAt(0));
 
     if (doesRequestedHostIsAnIP) {
       const errMessage = `IP address aren't valid ones`;
