@@ -49,7 +49,7 @@ const registeredCertificates = loadRegistered();
 const greenlockexpress = GreenLockExpress.init({
   ...greenlockConfig,
   notify: (errorType, errorArguments) => {
-    warn(errorType, errorArguments);
+    warn(`GreenLockExpress.Notify Error Event Receied\n\n\n` errorType, errorArguments);
     // if (errorType !== 'servername_unknown') {
     //   return warn(errorType, errorArguments);
     // }
