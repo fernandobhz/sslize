@@ -1,5 +1,5 @@
-const path = require('path');
-const os = require('os');
+const path = require("path");
+const os = require("os");
 const http01 = require("acme-http-01-standalone").create({});
 
 const home = os.homedir();
@@ -17,6 +17,7 @@ module.exports = {
   },
   configDir: greenlockConfigDir,
   staging: isStagingServer,
+  subscriberEmail: email,
   maintainerEmail: email,
   packageAgent: `${projectPackageJson.name}/${projectPackageJson.version}`,
   store: {
@@ -26,4 +27,4 @@ module.exports = {
   challenges: {
     "http-01": http01,
   },
-}
+};
