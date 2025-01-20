@@ -1,3 +1,4 @@
+const { log, warn, die } = require("./logger.js");
 const path = require("path");
 const os = require("os");
 const http01 = require("acme-http-01-standalone").create({});
@@ -10,7 +11,7 @@ const [email, destinationServer, isProductionServerString] = process.argv.slice(
 const isProductionServer = isProductionServerString === "true";
 const isStagingServer = !isProductionServer;
 
-module.exports = {
+const config = {
   packageRoot: __dirname,
   manager: {
     module: "@greenlock/manager",
@@ -28,3 +29,7 @@ module.exports = {
     "http-01": http01,
   },
 };
+
+log(JSON.stringify(config, null, 2));
+
+module.exports = config;

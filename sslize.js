@@ -34,14 +34,14 @@ log("-------------------------------------------");
 log(process.argv);
 log("-------------------------------------------");
 log(`
-PARSED: 
-	maintainerEmail: ${email}
+PARSED:
+	email: ${email}
   destinationServer: ${destinationServer}
   isProductionServer: ${isProductionServer}
   isStagingServer: ${isStagingServer}
 
   greenlock config file.....exists? ${doesGreenlockConfigDirExists ? "YES" : "NO"}
-  
+
 `);
 log("-------------------------------------------");
 
@@ -76,7 +76,7 @@ function processRequest(glx) {
     }
 
     // Request without domain names: ip address
-    const doesRequestedHostIsAnIP =  !isNaN(host[0].charAt(0));
+    const doesRequestedHostIsAnIP = !isNaN(host[0].charAt(0));
 
     if (doesRequestedHostIsAnIP) {
       const errMessage = `IP address aren't valid ones`;
@@ -94,7 +94,7 @@ function processRequest(glx) {
       return;
     }
 
-    throw new Error('Unreachable code reached');
+    throw new Error("Unreachable code reached");
   });
 }
 
